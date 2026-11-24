@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DentalLab Pro — Gestión de Laboratorio Dental</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Google Identity Services (GIS) para OAuth 2.0 Oficial -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Outfit', sans-serif;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 24px;
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col md:flex-row" x-data="app()" x-cloak x-init="initApp()">
+
+  <!-- ==================== SIDEBAR DESKTOP ==================== -->
+  <aside class="hidden md:flex flex-col w-64 bg-slate-900 text-white shrink-0 border-r border-slate-800 h-screen sticky top-0">
+    <div class="p-5 flex items-center justify-between border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+          <i class="fa-solid fa-tooth text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight tracking-tight" x-text="config.labNombre || 'DentalLab'"></h1>
+          <span class="text-xs text-slate-400 font-medium">Laboratorio Dental</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botón Acción Rápida: Nuevo Trabajo -->
+    <div class="p-4">
+      <button @click="abrirNuevoTrabajo()" class="w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition-all">
+        <i class="fa-solid fa-plus text-sm"></i>
+        <span>Cargar Trabajo Terminado</span>
+      </button>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
+      <button @click="seccion = 'trabajos'" :class="seccion === 'trabajos' ? 'bg-slate-800 text-blue-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left">
+        <i class="fa-solid fa-receipt w-5 text-center"></i>
+        <span>Trabajos y Boletas</span>
+        <span x-show="trabajos.length > 0" class="ml-auto bg-blue-500/20 text-blue-300 text-xs px-2 py-0.5 rounded-full" x-text="trabajos.length"></span>
+      </button>
+
+      <button @click="seccion = 'clientes'" :class="seccion === 'clientes' ? 'bg-slate-800 text-blue-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left">
+        <i class="fa-solid fa-user-doctor w-5 text-center"></i>
+        <span>Odontólogos y Saldos</span>
+        <span class="ml-auto bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full" x-text="clientes.length"></span>
+      </button>
+
+      <button @click="seccion = 'pacientes'" :class="seccion === 'pacientes' ? 'bg-slate-800 text-blue-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left">
+        <i class="fa-solid fa-hospital-user w-5 text-center"></i>
+        <span>Pacientes (Historial)</span>
+        <span class="ml-auto bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full" x-text="pacientes.length"></span>
+      </button>
+
+      <button @click="seccion = 'agenda'" :class="seccion === 'agenda' ? 'bg-slate-800 text-blue-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left">
+        <i class="fa-solid fa-calendar-days w-5 text-center"></i>
+        <span>Agenda (Google Calendar)</span>
+      </button>
+
+      <button @click="seccion = 'resumenes'" :class="seccion === 'resumenes' ? 'bg-slate-800 text-blue-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left">
+        <i class="fa-solid fa-calendar-check w-5 text-center"></i>
+        <span>Resumen Mensual (Cobros)</span>
+      </button>
+
+      <button @click="seccion = 'precios'" :class="seccion === 'precios' ? 'bg-slate-800 text-blue-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left">
+        <i class="fa-solid fa-tag w-5 text-center"></i>
+        <span>Lista de Precios</span>
+      </button>
+
+      <button @click="seccion = 'configuracion'" :class="seccion === 'configuracion' ? 'bg-slate-800 text-blue-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left">
+        <i class="fa-solid fa-gear w-5 text-center"></i>
+        <span>Configuración Google</span>
+      </button>
+    </nav>
+
+    <!-- Estado de Google OAuth en Footer -->
+    <div class="p-4 border-t border-slate-800 space-y-2 bg-slate-950/40">
+      <div class="flex items-center justify-between text-xs">
+        <span class="flex items-center gap-2 text-slate-400">
+          <i class="fa-brands fa-google text-blue-400"></i> Cuenta Google
+        </span>
+        <template x-if="googleUser">
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800 truncate max-w-[100px]" :title="googleUser.email">
+            <span class="w-1.5 h-1.5 rounded-full mr-1 bg-emerald-400 shrink-0"></span>
+            <span x-text="googleUser.email.split('@')[0]"></span>
+          </span>
+        </template>
+        <template x-if="!googleUser">
+          <button @click="iniciarSesionGoogle()" class="text-[10px] text-blue-400 hover:underline font-semibold">Iniciar Sesión</button>
+        </template>
+      </div>
+
+      <div class="flex items-center justify-between text-xs">
+        <span class="flex items-center gap-2 text-slate-400">
+          <i class="fa-solid fa-table text-emerald-400"></i> Sheet Privado
+        </span>
+        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" :class="config.sheetId ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'">
+          <span class="w-1.5 h-1.5 rounded-full mr-1" :class="config.sheetId ? 'bg-emerald-400' : 'bg-slate-400'"></span>
+          <span x-text="config.sheetId ? 'Conectado' : 'Sin vincular'"></span>
+        </span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== HEADER MOBILE ==================== -->
+  <header class="md:hidden bg-slate-900 text-white px-4 py-3 sticky top-0 z-30 flex items-center justify-between shadow-md">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
+        <i class="fa-solid fa-tooth text-sm"></i>
+      </div>
+      <span class="font-bold text-base tracking-tight" x-text="config.labNombre || 'DentalLab'"></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button @click="abrirNuevoTrabajo()" class="bg-blue-600 active:scale-95 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow">
+        <i class="fa-solid fa-plus"></i>
+        <span>Cargar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 flex flex-col min-w-0 pb-24 md:pb-8">
+
+    <!-- Top bar Desktop -->
+    <div class="hidden md:flex items-center justify-between px-8 py-4 bg-white border-b border-slate-200">
+      <div>
+        <h2 class="text-xl font-bold text-slate-900 capitalize" x-text="tituloSeccion(seccion)"></h2>
+        <p class="text-xs text-slate-500">Gestión de odontólogos, agenda de entregas y sincronización privada</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <template x-if="googleUser">
+          <div class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs">
+            <img :src="googleUser.picture || 'https://lh3.googleusercontent.com/a/default-user'" class="w-6 h-6 rounded-full" alt="avatar">
+            <span class="font-semibold text-slate-700" x-text="googleUser.email"></span>
+            <button @click="cerrarSesionGoogle()" class="text-slate-400 hover:text-rose-500 ml-1" title="Cerrar sesión de Google"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+          </div>
+        </template>
+        <template x-if="!googleUser">
+          <button @click="iniciarSesionGoogle()" class="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-2 transition">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-4 h-4" alt="google">
+            <span>Iniciar Sesión con Google</span>
+          </button>
+        </template>
+
+        <button @click="abrirNuevoTrabajo()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm transition">
+          <i class="fa-solid fa-plus text-xs"></i>
+          <span>Cargar Trabajo</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Banner si aún no vinculó la hoja -->
+    <div x-show="!googleUser || !config.sheetId" class="mx-4 md:mx-8 mt-4 p-4 rounded-2xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm" :class="!googleUser ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-amber-50 border-amber-200 text-amber-900'">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="!googleUser ? 'bg-blue-600 text-white' : 'bg-amber-500 text-white'">
+          <i class="fa-solid" :class="!googleUser ? 'fa-key' : 'fa-table'"></i>
+        </div>
+        <div>
+          <strong class="block font-bold text-sm" x-text="!googleUser ? 'Paso 1: Conectar tu Cuenta de Google' : 'Paso 2: Pegar el enlace de tu Google Sheet privado'"></strong>
+          <span class="text-xs opacity-90" x-text="!googleUser ? 'Iniciá sesión para que la app pueda guardar en tu Google Sheets y Calendar privados.' : 'Pegá el link de tu hoja privada en Ajustes para sincronizar tus trabajos.'"></span>
+        </div>
+      </div>
+      <div class="shrink-0">
+        <button x-show="!googleUser" @click="iniciarSesionGoogle()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl shadow transition flex items-center gap-2">
+          <i class="fa-brands fa-google"></i> Conectar con Google
+        </button>
+        <button x-show="googleUser && !config.sheetId" @click="seccion = 'configuracion'" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl shadow transition">
+          Ir a Ajustes y Pegar Enlace
+        </button>
+      </div>
+    </div>
+
+    <div class="p-4 md:p-8 max-w-7xl mx-auto w-full">
+
+      <!-- ======================================================== -->
+      <!-- SECCION 1: TRABAJOS Y BOLETAS                            -->
+      <!-- ======================================================== -->
+      <section x-show="seccion === 'trabajos'" class="space-y-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-medium text-slate-400 block mb-1">Trabajos Registrados</span>
+            <div class="flex items-baseline justify-between">
+              <span class="text-2xl font-bold text-blue-600" x-text="trabajos.length"></span>
+              <span class="text-blue-500 bg-blue-50 p-2 rounded-lg text-xs"><i class="fa-solid fa-tooth"></i></span>
+            </div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-medium text-slate-400 block mb-1">Total Facturado</span>
+            <div class="flex items-baseline justify-between">
+              <span class="text-xl md:text-2xl font-bold text-slate-900" x-text="formatoMoneda(calcularTotalFacturado())"></span>
+              <span class="text-emerald-500 bg-emerald-50 p-2 rounded-lg text-xs"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+            </div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-medium text-slate-400 block mb-1">Cobrado / Transferido</span>
+            <div class="flex items-baseline justify-between">
+              <span class="text-xl md:text-2xl font-bold text-emerald-600" x-text="formatoMoneda(calcularTotalCobrado())"></span>
+              <span class="text-emerald-500 bg-emerald-50 p-2 rounded-lg text-xs"><i class="fa-solid fa-circle-check"></i></span>
+            </div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-medium text-slate-400 block mb-1">Saldo a Cobrar</span>
+            <div class="flex items-baseline justify-between">
+              <span class="text-xl md:text-2xl font-bold text-rose-600" x-text="formatoMoneda(calcularSaldoGeneral())"></span>
+              <span class="text-rose-500 bg-rose-50 p-2 rounded-lg text-xs"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-3 md:p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" x-model="filtroBusqueda" placeholder="Buscar por odontólogo, paciente, N° boleta, servicio..." class="w-full pl-10 pr-4 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="abrirNuevoTrabajo()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm transition">
+              <i class="fa-solid fa-plus"></i>
+              <span>Cargar Trabajo</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de Boletas -->
+        <div class="space-y-3">
+          <template x-for="t in trabajosFiltrados" :key="t.id">
+            <div class="bg-white rounded-xl border border-slate-200 p-4 md:p-5 shadow-sm hover:border-blue-300 transition-all">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div class="flex items-start gap-3">
+                  <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0">
+                    <span x-text="t.clienteNombre ? t.clienteNombre.substring(0,2).toUpperCase() : 'OD'"></span>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h4 class="font-bold text-slate-900" x-text="t.clienteNombre"></h4>
+                      <span class="text-xs text-slate-500 font-mono font-medium" x-text="t.comprobanteNro"></span>
+                    </div>
+                    <p class="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                      <span><i class="fa-regular fa-calendar text-slate-400 mr-1"></i>Salida / Entrega: <strong x-text="t.fecha"></strong></span>
+                      <span x-show="t.enviadoCalendar" class="text-blue-600 font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-calendar-check text-[11px]"></i> En Calendar
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between md:justify-end gap-3">
+                  <span class="text-lg font-bold text-slate-900 font-mono" x-text="formatoMoneda(t.total)"></span>
+                  <button @click="verComprobante(t)" class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-receipt text-blue-600"></i>
+                    <span>Ver Boleta</span>
+                  </button>
+                  <button @click="enviarWhatsAppBoleta(t)" class="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-brands fa-whatsapp text-emerald-600"></i>
+                    <span class="hidden sm:inline">WhatsApp</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="py-2.5 space-y-1.5">
+                <template x-for="(item, idx) in t.items" :key="idx">
+                  <div class="flex items-center justify-between text-xs bg-slate-50 px-3 py-2 rounded-lg">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="font-bold text-slate-500" x-text="item.cantidad + 'x'"></span>
+                      <span class="font-semibold text-slate-800 uppercase" x-text="item.servicio"></span>
+                      <span class="text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-user text-[10px]"></i> <span x-text="'Pac: ' + (item.paciente || 'S/N')"></span>
+                      </span>
+                      <span class="text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-semibold border border-purple-200" x-text="'Color: ' + (item.color || 'A2')"></span>
+                    </div>
+                    <span class="font-bold text-slate-700 font-mono" x-text="formatoMoneda(item.precioTotal)"></span>
+                  </div>
+                </template>
+              </div>
+
+              <div x-show="t.notas" class="pt-2 text-[11px] text-slate-500 italic">
+                <span class="font-semibold not-italic text-slate-600">Observación:</span> <span x-text="t.notas"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- SECCION 2: ODONTÓLOGOS Y CUENTAS CORRIENTES              -->
+      <!-- ======================================================== -->
+      <section x-show="seccion === 'clientes'" class="space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-lg text-slate-900">Odontólogos y Cuentas Corrientes</h3>
+            <p class="text-xs text-slate-500">Historial de trabajos entregados, cobros/transferencias y saldos</p>
+          </div>
+          <button @click="abrirNuevoCliente()" class="bg-blue-600 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Nuevo Odontólogo</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="c in clientes" :key="c.id">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-blue-300 transition">
+              <div>
+                <div class="flex items-start justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 font-bold flex items-center justify-center text-sm">
+                      <i class="fa-solid fa-user-doctor text-base"></i>
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-slate-900 leading-tight" x-text="c.nombre"></h4>
+                      <span class="text-xs text-slate-400" x-text="c.localidad || 'La Plata'"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-3 space-y-1 text-xs text-slate-500">
+                  <p class="flex items-center gap-2"><i class="fa-solid fa-location-dot w-4 text-slate-400"></i><span x-text="c.domicilio || 'Domicilio no cargado'"></span></p>
+                  <p class="flex items-center gap-2"><i class="fa-solid fa-phone w-4 text-slate-400"></i><span x-text="c.telefono || 'Sin teléfono'"></span></p>
+                </div>
+
+                <div class="mt-4 p-3 bg-slate-50 rounded-xl space-y-2 text-xs border border-slate-100">
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Total Trabajos Entregados:</span>
+                    <strong class="text-slate-800 font-mono" x-text="formatoMoneda(calcularFacturadoCliente(c.nombre))"></strong>
+                  </div>
+                  <div class="flex justify-between items-center text-emerald-700">
+                    <span>Total Cobrado / Transferido:</span>
+                    <strong class="font-mono" x-text="formatoMoneda(calcularCobradoCliente(c.nombre))"></strong>
+                  </div>
+                  <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
+                    <span class="font-bold text-slate-700">Saldo Pendiente:</span>
+                    <strong class="text-sm font-bold font-mono" :class="calcularSaldoCliente(c.nombre) > 0 ? 'text-rose-600' : 'text-emerald-600'" x-text="formatoMoneda(calcularSaldoCliente(c.nombre))"></strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs gap-2">
+                <button @click="abrirRegistrarCobro(c)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition">
+                  <i class="fa-solid fa-dollar-sign"></i>
+                  <span>Registrar Cobro</span>
+                </button>
+
+                <button @click="generarResumenParaCliente(c)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition">
+                  <i class="fa-solid fa-calendar-check text-blue-600"></i>
+                  <span>Resumen Mes</span>
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- SECCION 3: PACIENTES (HISTORIAL Y MULTI-DOCTOR)          -->
+      <!-- ======================================================== -->
+      <section x-show="seccion === 'pacientes'" class="space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-lg text-slate-900">Historial de Pacientes</h3>
+            <p class="text-xs text-slate-500">Los pacientes se retroalimentan solos al cargar trabajos y pueden atenderse con varios odontólogos</p>
+          </div>
+          <button @click="abrirNuevoPacienteModal()" class="bg-blue-600 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Nuevo Paciente</span>
+          </button>
+        </div>
+
+        <div class="bg-white p-3 md:p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" x-model="filtroBusquedaPaciente" placeholder="Buscar paciente por nombre, teléfono, pieza o doctor..." class="w-full pl-10 pr-4 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="p in pacientesFiltrados" :key="p.id">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-blue-300 transition">
+              <div>
+                <div class="flex items-start justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-sm shrink-0">
+                      <i class="fa-solid fa-hospital-user text-base"></i>
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-slate-900 leading-tight" x-text="p.nombre"></h4>
+                      <p class="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5" x-show="p.telefono">
+                        <i class="fa-solid fa-phone text-[10px]"></i> <span x-text="p.telefono"></span>
+                      </p>
+                    </div>
+                  </div>
+                  <button @click="editarPacienteModal(p)" class="text-slate-400 hover:text-blue-600 text-xs p-1" title="Editar info de contacto">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                </div>
+
+                <div class="mt-3">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Odontólogos que lo atendieron:</span>
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="od in p.odontologos" :key="od">
+                      <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-blue-200">
+                        <i class="fa-solid fa-user-doctor text-[9px]"></i>
+                        <span x-text="od"></span>
+                      </span>
+                    </template>
+                    <span x-show="!p.odontologos || p.odontologos.length === 0" class="text-slate-400 text-xs italic">Sin odontólogos registrados</span>
+                  </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Trabajos realizados:</span>
+                  <div class="space-y-1 max-h-32 overflow-y-auto pr-1">
+                    <template x-for="trab in obtenerHistorialPaciente(p.nombre)" :key="trab.idItem">
+                      <div class="p-2 bg-slate-50 rounded-lg text-[11px] flex items-center justify-between">
+                        <div>
+                          <strong class="text-slate-800" x-text="trab.servicio"></strong>
+                          <span class="text-purple-700 font-bold ml-1" x-text="'(' + (trab.color || 'A2') + ')'"></span>
+                          <span class="block text-[10px] text-slate-400" x-text="trab.fecha + ' • ' + trab.clienteNombre"></span>
+                        </div>
+                        <span class="font-mono font-bold text-slate-700" x-text="formatoMoneda(trab.precioTotal)"></span>
+                      </div>
+                    </template>
+                    <div x-show="obtenerHistorialPaciente(p.nombre).length === 0" class="text-slate-400 text-xs italic">
+                      Sin trabajos aún
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- SECCION 4: AGENDA Y GOOGLE CALENDAR EMBEBIDO             -->
+      <!-- ======================================================== -->
+      <section x-show="seccion === 'agenda'" class="space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 class="font-bold text-lg text-slate-900">Agenda de Entregas (Google Calendar)</h3>
+            <p class="text-xs text-slate-500">Visualizá tu calendario interactivo de Google y tus entregas programadas</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a :href="'https://calendar.google.com/calendar/u/0/r'" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm transition">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <span>Abrir en Google Calendar</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Próximas entregas según trabajos -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Entregas registradas recientemente
+            </span>
+            <span class="text-xs text-slate-400" x-text="trabajos.length + ' trabajos agendados'"></span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <template x-for="t in trabajos.slice(0, 3)" :key="t.id">
+              <div class="p-3 bg-blue-50/60 border border-blue-100 rounded-xl space-y-1 text-xs">
+                <div class="flex justify-between items-start">
+                  <strong class="text-slate-900" x-text="t.clienteNombre"></strong>
+                  <span class="font-mono text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded" x-text="t.fecha"></span>
+                </div>
+                <p class="text-slate-600 text-[11px]" x-text="t.items.map(i => i.servicio + ' (' + i.paciente + ')').join(', ')"></p>
+                <div class="flex justify-between items-center pt-1 text-[11px]">
+                  <span class="text-slate-400" x-text="t.comprobanteNro"></span>
+                  <strong class="text-slate-800 font-mono" x-text="formatoMoneda(t.total)"></strong>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Calendario Google Embebido Interactivo -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700 flex items-center gap-2">
+              <i class="fa-solid fa-calendar text-blue-600"></i> Vista mensual / semanal interactiva
+            </span>
+            <span class="text-[11px] text-slate-400" x-text="'Calendario: ' + (config.calendarId || 'Principal')"></span>
+          </div>
+          <div class="w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100" style="height: 650px;">
+            <iframe :src="obtenerIframeCalendarUrl()" style="border: 0" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- SECCION 5: RESUMEN MENSUAL                               -->
+      <!-- ======================================================== -->
+      <section x-show="seccion === 'resumenes'" class="space-y-6">
+        <div class="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-6 rounded-2xl shadow-lg">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span class="bg-blue-500/30 text-blue-200 text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider">Cuentas Corrientes</span>
+              <h3 class="text-2xl font-bold mt-2">Generar Resumen Mensual de Cobro</h3>
+              <p class="text-sm text-blue-200 mt-1 max-w-xl">
+                Junta todos los trabajos del mes de un odontólogo para enviarle el total a transferir por WhatsApp o imprimir a principio de mes.
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white/10 p-4 rounded-xl backdrop-blur-sm text-xs">
+            <div>
+              <label class="block font-semibold mb-1 text-blue-100">Odontólogo / Cliente</label>
+              <select x-model="resumenFiltro.clienteNombre" class="w-full px-3 py-2 rounded-lg bg-white text-slate-900 font-medium">
+                <option value="">-- Seleccionar Odontólogo --</option>
+                <template x-for="c in clientes" :key="c.id">
+                  <option :value="c.nombre" x-text="c.nombre"></option>
+                </template>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold mb-1 text-blue-100">Mes a Liquidar</label>
+              <select x-model="resumenFiltro.mes" class="w-full px-3 py-2 rounded-lg bg-white text-slate-900 font-medium">
+                <option value="11">Noviembre 2026</option>
+                <option value="10">Octubre 2026</option>
+                <option value="09">Septiembre 2026</option>
+                <option value="12">Diciembre 2026</option>
+              </select>
+            </div>
+            <div class="flex items-end">
+              <button @click="cargarResumenMensual()" class="w-full bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <span>Ver Resumen</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div x-show="resumenActual.clienteNombre" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+            <div>
+              <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Estado de Cuenta Mensual</span>
+              <h4 class="text-xl font-bold text-slate-900" x-text="resumenActual.clienteNombre"></h4>
+              <p class="text-xs text-slate-500">Período: <strong x-text="nombreMes(resumenFiltro.mes) + ' 2026'"></strong></p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="imprimirArea()" class="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-2 transition">
+                <i class="fa-solid fa-print"></i>
+                <span>Imprimir Resumen</span>
+              </button>
+              <button @click="enviarWhatsAppResumen()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition">
+                <i class="fa-brands fa-whatsapp text-sm"></i>
+                <span>Enviar Resumen x WhatsApp</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h5 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">1. Trabajos Realizados en el Mes</h5>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+                <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                  <tr>
+                    <th class="p-2.5">Fecha</th>
+                    <th class="p-2.5">Boleta N°</th>
+                    <th class="p-2.5">Paciente</th>
+                    <th class="p-2.5">Color</th>
+                    <th class="p-2.5">Servicio</th>
+                    <th class="p-2.5 text-center">Cant.</th>
+                    <th class="p-2.5 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <template x-for="item in resumenActual.items" :key="item.idItem">
+                    <tr class="hover:bg-slate-50">
+                      <td class="p-2.5 text-slate-500" x-text="item.fecha"></td>
+                      <td class="p-2.5 font-mono text-slate-600" x-text="item.comprobanteNro"></td>
+                      <td class="p-2.5 font-bold text-blue-700" x-text="item.paciente"></td>
+                      <td class="p-2.5 font-semibold text-purple-700" x-text="item.color || 'A2'"></td>
+                      <td class="p-2.5 font-medium text-slate-800" x-text="item.servicio"></td>
+                      <td class="p-2.5 text-center font-bold" x-text="item.cantidad"></td>
+                      <td class="p-2.5 text-right font-mono font-bold text-slate-900" x-text="formatoMoneda(item.precioTotal)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="p-5 bg-slate-900 text-white rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1 text-xs">
+              <div class="flex gap-4">
+                <span class="text-slate-400">Total Trabajos:</span>
+                <strong class="font-mono text-white" x-text="formatoMoneda(resumenActual.totalFacturado)"></strong>
+              </div>
+              <div class="flex gap-4 text-emerald-400">
+                <span>Pagos Realizados:</span>
+                <strong class="font-mono" x-text="formatoMoneda(resumenActual.totalPagado)"></strong>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-xs uppercase font-bold text-slate-400 block">Saldo Total a Transferir:</span>
+              <span class="text-2xl md:text-3xl font-extrabold text-blue-400 font-mono" x-text="formatoMoneda(resumenActual.saldoFinal)"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- SECCION 6: LISTA DE PRECIOS                              -->
+      <!-- ======================================================== -->
+      <section x-show="seccion === 'precios'" class="space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-lg text-slate-900">Catálogo de Servicios y Aranceles</h3>
+            <p class="text-xs text-slate-500">Valores predeterminados que la app cargará automáticamente en cada orden</p>
+          </div>
+          <button @click="abrirNuevoPrecio()" class="bg-blue-600 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-plus"></i>
+            <span>Nuevo Servicio</span>
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500">
+                <th class="p-4">Descripción del Trabajo</th>
+                <th class="p-4">Categoría</th>
+                <th class="p-4 text-right">Precio Sugerido</th>
+                <th class="p-4 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-for="(p, index) in listaPrecios" :key="index">
+                <tr class="hover:bg-slate-50/60 transition">
+                  <td class="p-4 font-semibold text-slate-800 uppercase" x-text="p.nombre"></td>
+                  <td class="p-4 text-xs text-slate-500">
+                    <span class="bg-slate-100 px-2 py-0.5 rounded" x-text="p.categoria || 'General'"></span>
+                  </td>
+                  <td class="p-4 text-right font-bold text-slate-900 font-mono" x-text="formatoMoneda(p.precio)"></td>
+                  <td class="p-4 text-center">
+                    <button @click="editarPrecio(index)" class="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button @click="eliminarPrecio(index)" class="text-rose-500 hover:text-rose-700 text-xs font-medium px-2 py-1 ml-1"><i class="fa-solid fa-trash"></i></button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- SECCION 7: CONFIGURACIÓN GOOGLE                          -->
+      <!-- ======================================================== -->
+      <section x-show="seccion === 'configuracion'" class="space-y-6 max-w-3xl">
+        <div>
+          <h3 class="font-bold text-lg text-slate-900">Configuración de Google Privado</h3>
+          <p class="text-xs text-slate-500">Conexión directa mediante Google OAuth oficial. Ningún dato pasa por servidores de terceros.</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                <i class="fa-brands fa-google"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-slate-900">1. Tu Sesión de Google</h4>
+                <p class="text-xs text-slate-500">Autoriza a esta app local a acceder únicamente a tu Drive y Calendar.</p>
+              </div>
+            </div>
+            <div>
+              <template x-if="googleUser">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                  <span class="w-2 h-2 rounded-full mr-1.5 bg-emerald-600"></span> Conectado
+                </span>
+              </template>
+              <template x-if="!googleUser">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Desconectado</span>
+              </template>
+            </div>
+          </div>
+
+          <div class="text-xs">
+            <template x-if="googleUser">
+              <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <div class="flex items-center gap-2">
+                  <img :src="googleUser.picture || 'https://lh3.googleusercontent.com/a/default-user'" class="w-8 h-8 rounded-full" alt="avatar">
+                  <div>
+                    <strong class="block text-slate-800" x-text="googleUser.name"></strong>
+                    <span class="text-slate-500 text-[11px]" x-text="googleUser.email"></span>
+                  </div>
+                </div>
+                <button @click="cerrarSesionGoogle()" class="text-rose-600 hover:underline font-semibold">Cerrar Sesión</button>
+              </div>
+            </template>
+            <template x-if="!googleUser">
+              <button @click="iniciarSesionGoogle()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm">
+                <i class="fa-brands fa-google"></i>
+                <span>Iniciar Sesión con mi Cuenta de Google</span>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-table"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-slate-900">2. Tu Hoja de Google Sheets Privada</h4>
+              <p class="text-xs text-slate-500">Crea una hoja en blanco en tu Drive y pega el enlace aquí.</p>
+            </div>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Enlace de tu Google Sheet</label>
+              <div class="flex gap-2">
+                <input type="text" x-model="config.sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/.../edit" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+                <button @click="vincularSheetPrivado()" :disabled="!googleUser" class="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg transition shrink-0 flex items-center gap-1.5">
+                  <i class="fa-solid fa-link"></i>
+                  <span>Vincular y Preparar</span>
+                </button>
+              </div>
+            </div>
+
+            <div x-show="config.sheetId" class="p-3 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+              <span class="flex items-center gap-2">
+                <i class="fa-solid fa-check-circle text-emerald-600"></i>
+                <span>Hoja vinculada: <strong class="font-mono" x-text="config.sheetId.substring(0, 16) + '...'"></strong></span>
+              </span>
+              <a :href="config.sheetUrl" target="_blank" class="text-blue-600 hover:underline font-bold text-[11px]">Abrir en Google Drive ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Google Calendar Selector Flexible -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-calendar"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-slate-900">3. Tu Google Calendar Privado</h4>
+              <p class="text-xs text-slate-500">Podés usar tu calendario principal o pegar el Calendar ID / enlace público de uno secundario (ej: "Laboratorio").</p>
+            </div>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Calendar ID o Enlace del Calendario</label>
+              <input type="text" x-model="config.calendarId" @input="limpiarCalendarIdInput()" placeholder="primary (o tu-correo@gmail.com o https://calendar.google.com/...)" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+              <p class="text-[11px] text-slate-400 mt-1">Escribí <code>primary</code> para tu calendario personal de siempre, o pegá el Calendar ID (o el link con <code>src=...</code>) de tu calendario secundario.</p>
+            </div>
+
+            <div class="flex items-center justify-between p-3 bg-blue-50/70 border border-blue-200 rounded-xl">
+              <div>
+                <span class="font-semibold text-blue-900 block">Agendar eventos en este Google Calendar</span>
+                <span class="text-[11px] text-blue-700">Crea el evento con alertas al celular (24 hs antes y 2 hs antes)</span>
+              </div>
+              <input type="checkbox" x-model="config.calendarConectado" class="w-5 h-5 text-blue-600 rounded">
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos del Laboratorio -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-building-columns"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-slate-900">4. Datos del Laboratorio y Cobro</h4>
+              <p class="text-xs text-slate-500">Aparecen en las boletas y resúmenes de WhatsApp.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Nombre del Laboratorio</label>
+              <input type="text" x-model="config.labNombre" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Teléfono / WhatsApp</label>
+              <input type="text" x-model="config.labTelefono" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Localidad / Domicilio</label>
+              <input type="text" x-model="config.labCiudad" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Alias / CBU para transferencias</label>
+              <input type="text" x-model="config.labAlias" placeholder="mica.laboratorio.mp" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold text-blue-700">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Siguiente N° de Comprobante</label>
+              <input type="number" x-model="config.siguienteNumero" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono">
+            </div>
+          </div>
+
+          <div class="pt-2 flex justify-end">
+            <button @click="guardarStorage(); alert('Ajustes guardados correctamente.');" class="bg-slate-900 text-white font-semibold text-xs px-5 py-2.5 rounded-xl hover:bg-slate-800 transition">
+              Guardar Ajustes
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ==================== MOBILE BOTTOM NAVIGATION ==================== -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-2 flex items-center justify-around z-30 shadow-lg">
+    <button @click="seccion = 'trabajos'" :class="seccion === 'trabajos' ? 'text-blue-600' : 'text-slate-400'" class="flex flex-col items-center gap-1 text-[11px] font-medium p-1">
+      <i class="fa-solid fa-receipt text-base"></i>
+      <span>Boletas</span>
+    </button>
+    <button @click="seccion = 'clientes'" :class="seccion === 'clientes' ? 'text-blue-600' : 'text-slate-400'" class="flex flex-col items-center gap-1 text-[11px] font-medium p-1">
+      <i class="fa-solid fa-user-doctor text-base"></i>
+      <span>Odontólogos</span>
+    </button>
+    <button @click="abrirNuevoTrabajo()" class="flex flex-col items-center -mt-5">
+      <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/40 text-lg active:scale-95 transition">
+        <i class="fa-solid fa-plus"></i>
+      </div>
+      <span class="text-[10px] font-bold text-slate-700 mt-1">Cargar</span>
+    </button>
+    <button @click="seccion = 'pacientes'" :class="seccion === 'pacientes' ? 'text-blue-600' : 'text-slate-400'" class="flex flex-col items-center gap-1 text-[11px] font-medium p-1">
+      <i class="fa-solid fa-hospital-user text-base"></i>
+      <span>Pacientes</span>
+    </button>
+    <button @click="seccion = 'agenda'" :class="seccion === 'agenda' ? 'text-blue-600' : 'text-slate-400'" class="flex flex-col items-center gap-1 text-[11px] font-medium p-1">
+      <i class="fa-solid fa-calendar-days text-base"></i>
+      <span>Agenda</span>
+    </button>
+  </nav>
+
+  <!-- ==================== LOGICA JAVASCRIPT ==================== -->
+  <script>
+    const GOOGLE_CLIENT_ID = '506049007988-ggov0cljobpv5vb5fsb7fe848991klpa.apps.googleusercontent.com';
+    const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar.events email profile';
+
+    function app() {
+      return {
+        seccion: 'trabajos',
+        filtroBusqueda: '',
+        filtroBusquedaPaciente: '',
+        
+        googleUser: null,
+        tokenClient: null,
+        accessToken: null,
+
+        modalNuevoTrabajo: false,
+        modalComprobante: false,
+        modalNuevoCliente: false,
+        modalPaciente: false,
+        modalCobro: false,
+        modalPrecio: false,
+        editandoPrecioIndex: null,
+
+        config: {
+          sheetUrl: '',
+          sheetId: '',
+          calendarId: 'primary',
+          calendarConectado: true,
+          labNombre: 'Laboratorio Dental Pro',
+          labTelefono: '221 400-9876',
+          labCiudad: 'La Plata',
+          labAlias: 'mica.laboratorio.mp',
+          siguienteNumero: 32924
+        },
+
+        listaPrecios: [
+          { nombre: 'CORONA FRESADA', categoria: 'Prótesis Fija', precio: 35000 },
+          { nombre: 'CORONA ZIRCONIO MONOLÍTICA', categoria: 'Prótesis Fija', precio: 48000 },
+          { nombre: 'PERNO COLADO SIMPLE', categoria: 'Pernos', precio: 18000 },
+          { nombre: 'PERNO SECCIONADO', categoria: 'Pernos', precio: 22000 },
+          { nombre: 'PRÓTESIS COMPLETA ACRÍLICA', categoria: 'Removible', precio: 85000 },
+          { nombre: 'PRÓTESIS PARCIAL FLEXIBLE', categoria: 'Removible', precio: 95000 },
+          { nombre: 'PROVISORIO DE PMMA', categoria: 'Fija', precio: 14000 },
+          { nombre: 'PLACA DE DESCANSO / MIORRELAJANTE', categoria: 'Placas', precio: 32000 }
+        ],
+
+        clientes: [
+          { id: 1, nombre: 'MICAELA TRSZCZ (C)', domicilio: 'LA PLATA', localidad: 'La Plata', telefono: '221 456-7890' },
+          { id: 2, nombre: 'DR. ESTEBAN MARTÍNEZ', domicilio: 'Calle 12 N° 540', localidad: 'City Bell', telefono: '221 512-3456' },
+          { id: 3, nombre: 'DRA. LAURA BENÍTEZ', domicilio: 'Av. 7 N° 1240', localidad: 'La Plata', telefono: '221 698-7412' }
+        ],
+
+        pacientes: [
+          { id: 1, nombre: 'PZ 16 (Micaela)', telefono: '', email: '', odontologos: ['MICAELA TRSZCZ (C)'], notas: 'Pieza 16' },
+          { id: 2, nombre: 'PZ 14 (Micaela)', telefono: '', email: '', odontologos: ['MICAELA TRSZCZ (C)'], notas: 'Pieza 14' },
+          { id: 3, nombre: 'Gómez Raúl', telefono: '221 555-9090', email: '', odontologos: ['DR. ESTEBAN MARTÍNEZ', 'MICAELA TRSZCZ (C)'], notas: 'PZ 21 perno colado' },
+          { id: 4, nombre: 'Díaz Marta', telefono: '', email: '', odontologos: ['DRA. LAURA BENÍTEZ'], notas: 'Completa superior' }
+        ],
+
+        trabajos: [
+          {
+            id: 1,
+            comprobanteNro: '0000-00032923',
+            fecha: '03/11/2026',
+            clienteNombre: 'MICAELA TRSZCZ (C)',
+            enviadoCalendar: true,
+            notas: 'Corona para cementar en clínica',
+            items: [
+              { servicio: 'CORONA FRESADA', paciente: 'PZ 16', color: 'A2', cantidad: 1, precioUnitario: 35000, precioTotal: 35000 },
+              { servicio: 'CORONA FRESADA', paciente: 'PZ 14', color: 'A2', cantidad: 1, precioUnitario: 35000, precioTotal: 35000 }
+            ],
+            total: 70000
+          }
+        ],
+
+        pagos: [],
+
+        nuevoTrabajo: {
+          clienteNombre: '',
+          fecha: new Date().toISOString().split('T')[0],
+          agendarCalendar: true,
+          notas: '',
+          items: []
+        },
+
+        pacienteForm: { id: null, nombre: '', telefono: '', email: '', notas: '', odontologos: [] },
+        cobroForm: { clienteNombre: '', monto: 0, fecha: new Date().toISOString().split('T')[0], medio: 'Transferencia Bancaria', nota: '' },
+        comprobanteActual: { comprobanteNro: '', fecha: '', clienteNombre: '', items: [], total: 0 },
+        resumenFiltro: { clienteNombre: '', mes: '11' },
+        resumenActual: { clienteNombre: '', items: [], pagos: [], totalFacturado: 0, totalPagado: 0, saldoFinal: 0 },
+        nuevoCliente: { nombre: '', domicilio: '', localidad: 'La Plata', telefono: '' },
+
+        initApp() {
+          // Clave de almacenamiento estable y permanente
+          const STORAGE_KEY = 'dentallab_db_permanent';
+          
+          // Intentar cargar de la clave permanente o migrar de versiones previas
+          let guardado = localStorage.getItem(STORAGE_KEY) || 
+                         localStorage.getItem('dentallab_oauth_data_v4') || 
+                         localStorage.getItem('dentallab_oauth_data_v3') || 
+                         localStorage.getItem('dentallab_oauth_data') || 
+                         localStorage.getItem('dentallab_pro_v2') || 
+                         localStorage.getItem('dentallab_data_v1');
+
+          if (guardado) {
+            try {
+              const data = JSON.parse(guardado);
+              if (data.trabajos && data.trabajos.length > 0) this.trabajos = data.trabajos;
+              if (data.clientes && data.clientes.length > 0) this.clientes = data.clientes;
+              if (data.pacientes && data.pacientes.length > 0) this.pacientes = data.pacientes;
+              if (data.pagos) this.pagos = data.pagos;
+              if (data.listaPrecios && data.listaPrecios.length > 0) this.listaPrecios = data.listaPrecios;
+              if (data.config) this.config = Object.assign(this.config, data.config);
+              if (data.googleUser) this.googleUser = data.googleUser;
+              if (data.accessToken) this.accessToken = data.accessToken;
+            } catch (e) {
+              console.error("Error al restaurar datos:", e);
+            }
+          }
+          if (this.clientes.length > 0) {
+            this.resumenFiltro.clienteNombre = this.clientes[0].nombre;
+          }
+
+          // Guardar de inmediato en la clave permanente
+          this.guardarStorage();
+
+          const checkGIS = setInterval(() => {
+            if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+              clearInterval(checkGIS);
+              this.tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: GOOGLE_SCOPES,
+                callback: (tokenResponse) => {
+                  if (tokenResponse.error) {
+                    console.error("Error al autenticar:", tokenResponse);
+                    alert("Error al iniciar sesión con Google: " + tokenResponse.error);
+                    return;
+                  }
+                  this.accessToken = tokenResponse.access_token;
+                  this.guardarStorage();
+                  this.obtenerPerfilUsuario(this.accessToken);
+                }
+              });
+            }
+          }, 200);
+        },
+
+        guardarStorage() {
+          localStorage.setItem('dentallab_db_permanent', JSON.stringify({
+            trabajos: this.trabajos,
+            clientes: this.clientes,
+            pacientes: this.pacientes,
+            pagos: this.pagos,
+            listaPrecios: this.listaPrecios,
+            config: this.config,
+            googleUser: this.googleUser,
+            accessToken: this.accessToken
+          }));
+        },
+
+        // ==========================================
+        // GESTIÓN DE CALENDAR FLEXIBLE (ID / LINK)
+        // ==========================================
+        limpiarCalendarIdInput() {
+          let val = this.config.calendarId.trim();
+          // Si pegó una URL pública con src=...
+          if (val.includes('src=')) {
+            const match = val.match(/src=([^&]+)/);
+            if (match) {
+              this.config.calendarId = decodeURIComponent(match[1]);
+            }
+          }
+          this.guardarStorage();
+        },
+
+        obtenerIframeCalendarUrl() {
+          const calId = this.config.calendarId && this.config.calendarId !== 'primary' 
+            ? this.config.calendarId 
+            : (this.googleUser?.email || 'es.ar%23holiday%40group.v.calendar.google.com');
+          return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calId)}&ctz=America%2FArgentina%2FBuenos_Aires&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=1&showCalendars=0&showTz=0`;
+        },
+
+        // ==========================================
+        // PACIENTES (N:M)
+        // ==========================================
+        get pacientesFiltrados() {
+          const b = this.filtroBusquedaPaciente.toLowerCase().trim();
+          if (!b) return this.pacientes;
+          return this.pacientes.filter(p => {
+            const nom = p.nombre.toLowerCase().includes(b);
+            const tel = (p.telefono || '').toLowerCase().includes(b);
+            const not = (p.notas || '').toLowerCase().includes(b);
+            const ods = (p.odontologos || []).some(o => o.toLowerCase().includes(b));
+            return nom || tel || not || ods;
+          });
+        },
+
+        filtrarPacientesSugeridos(texto) {
+          if (!texto) return [];
+          const b = texto.toLowerCase().trim();
+          return this.pacientes.filter(p => p.nombre.toLowerCase().includes(b)).slice(0, 5);
+        },
+
+        abrirNuevoPacienteModal() {
+          this.pacienteForm = { id: null, nombre: '', telefono: '', email: '', notas: '', odontologos: [] };
+          this.modalPaciente = true;
+        },
+
+        editarPacienteModal(p) {
+          this.pacienteForm = JSON.parse(JSON.stringify(p));
+          this.modalPaciente = true;
+        },
+
+        guardarPacienteModal() {
+          if (!this.pacienteForm.nombre.trim()) return;
+          if (this.pacienteForm.id) {
+            const idx = this.pacientes.findIndex(p => p.id === this.pacienteForm.id);
+            if (idx !== -1) {
+              this.pacientes[idx] = JSON.parse(JSON.stringify(this.pacienteForm));
+            }
+          } else {
+            this.pacientes.push({
+              id: Date.now(),
+              nombre: this.pacienteForm.nombre.trim(),
+              telefono: this.pacienteForm.telefono.trim(),
+              email: this.pacienteForm.email.trim(),
+              notas: this.pacienteForm.notas.trim(),
+              odontologos: []
+            });
+          }
+          this.guardarStorage();
+          this.modalPaciente = false;
+        },
+
+        obtenerHistorialPaciente(nombrePaciente) {
+          let lista = [];
+          const nom = (nombrePaciente || '').toLowerCase().trim();
+          this.trabajos.forEach(t => {
+            t.items.forEach(i => {
+              if ((i.paciente || '').toLowerCase().trim() === nom) {
+                lista.push({
+                  idItem: Math.random(),
+                  fecha: t.fecha,
+                  clienteNombre: t.clienteNombre,
+                  comprobanteNro: t.comprobanteNro,
+                  servicio: i.servicio,
+                  color: i.color,
+                  cantidad: i.cantidad,
+                  precioTotal: i.precioTotal
+                });
+              }
+            });
+          });
+          return lista;
+        },
+
+        registrarOActualizarPaciente(nombre, doctor) {
+          if (!nombre || !nombre.trim()) return;
+          const limpio = nombre.trim();
+          const existente = this.pacientes.find(p => p.nombre.toLowerCase() === limpio.toLowerCase());
+          
+          if (existente) {
+            if (!existente.odontologos) existente.odontologos = [];
+            if (doctor && !existente.odontologos.includes(doctor)) {
+              existente.odontologos.push(doctor);
+            }
+          } else {
+            this.pacientes.push({
+              id: Date.now() + Math.floor(Math.random() * 1000),
+              nombre: limpio,
+              telefono: '',
+              email: '',
+              notas: '',
+              odontologos: doctor ? [doctor] : []
+            });
+          }
+        },
+
+        // ==========================================
+        // GOOGLE OAUTH Y APIS
+        // ==========================================
+        iniciarSesionGoogle() {
+          if (!this.tokenClient) {
+            alert("Cargando componentes de Google... Por favor reintenta en unos segundos.");
+            return;
+          }
+          this.tokenClient.requestAccessToken({ prompt: 'consent' });
+        },
+
+        cerrarSesionGoogle() {
+          this.googleUser = null;
+          this.accessToken = null;
+          this.guardarStorage();
+          alert("Sesión de Google cerrada.");
+        },
+
+        async obtenerPerfilUsuario(token) {
+          try {
+            const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (resp.ok) {
+              this.googleUser = await resp.json();
+              this.guardarStorage();
+              alert(`✅ ¡Bienvenido ${this.googleUser.name}! Sesión iniciada.`);
+            }
+          } catch (e) {
+            console.error("Error al obtener perfil", e);
+          }
+        },
+
+        extraerSheetId(url) {
+          const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+          return match ? match[1] : (url.length > 25 ? url.trim() : null);
+        },
+
+        async vincularSheetPrivado() {
+          if (!this.accessToken) {
+            alert("Primero debes iniciar sesión con Google.");
+            return;
+          }
+          const id = this.extraerSheetId(this.config.sheetUrl);
+          if (!id) {
+            alert("Por favor ingresa un enlace válido de Google Sheets.");
+            return;
+          }
+
+          try {
+            const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}`, {
+              headers: { Authorization: `Bearer ${this.accessToken}` }
+            });
+
+            if (!resp.ok) {
+              const err = await resp.json();
+              alert("No se pudo acceder a la hoja: " + (err.error?.message || "Verifica que pertenezca a tu cuenta de Google."));
+              return;
+            }
+
+            const sheetData = await resp.json();
+            this.config.sheetId = id;
+            this.guardarStorage();
+
+            await this.prepararEstructuraSheet(id, sheetData);
+            alert(`✅ ¡Hoja privada "${sheetData.properties.title}" vinculada con éxito!`);
+          } catch (e) {
+            alert("Error de conexión: " + e.message);
+          }
+        },
+
+        async prepararEstructuraSheet(id, sheetData) {
+          const nombresHojas = (sheetData.sheets || []).map(s => s.properties.title);
+          let requests = [];
+          if (!nombresHojas.includes("Trabajos")) requests.push({ addSheet: { properties: { title: "Trabajos" } } });
+          if (!nombresHojas.includes("Pagos")) requests.push({ addSheet: { properties: { title: "Pagos" } } });
+          if (!nombresHojas.includes("Pacientes")) requests.push({ addSheet: { properties: { title: "Pacientes" } } });
+
+          if (requests.length > 0) {
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}:batchUpdate`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ requests })
+            });
+
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/Trabajos!A1:J1?valueInputOption=USER_ENTERED`, {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: [["Comprobante", "Fecha", "Odontologo", "Paciente", "Color", "Servicio", "Cantidad", "PrecioUnitario", "Total", "Notas"]] })
+            });
+
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/Pacientes!A1:E1?valueInputOption=USER_ENTERED`, {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: [["Nombre", "Odontologos", "Telefono", "Email", "Notas"]] })
+            });
+          }
+        },
+
+        async sincronizarTrabajoEnSheet(trabajo) {
+          if (!this.accessToken || !this.config.sheetId) return;
+          try {
+            const filas = trabajo.items.map(item => [
+              trabajo.comprobanteNro,
+              trabajo.fecha,
+              trabajo.clienteNombre,
+              item.paciente,
+              item.color || 'A2',
+              item.servicio,
+              item.cantidad,
+              item.precioUnitario,
+              item.precioTotal,
+              trabajo.notas || ''
+            ]);
+
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.sheetId}/values/Trabajos!A:J:append?valueInputOption=USER_ENTERED`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: filas })
+            });
+          } catch (e) {
+            console.error("Error al sincronizar con Sheets:", e);
+          }
+        },
+
+        async agendarEnCalendarDirecto(trabajo) {
+          if (!this.accessToken) return;
+          try {
+            const resumenServicios = trabajo.items.map(i => `${i.servicio} (Pac: ${i.paciente} - ${i.color || 'A2'})`).join(', ');
+            const titulo = `[ENTREGA] ${trabajo.clienteNombre} - ${resumenServicios}`;
+            
+            const partes = trabajo.fecha.split('/');
+            const fechaISO = `${partes[2]}-${partes[1]}-${partes[0]}`;
+            
+            const evento = {
+              summary: titulo,
+              description: `Boleta N°: ${trabajo.comprobanteNro}\nOdontólogo: ${trabajo.clienteNombre}\nTotal: $${trabajo.total}\nNotas: ${trabajo.notas || 'Sin notas'}`,
+              start: { dateTime: `${fechaISO}T11:00:00-03:00`, timeZone: 'America/Argentina/Buenos_Aires' },
+              end: { dateTime: `${fechaISO}T12:00:00-03:00`, timeZone: 'America/Argentina/Buenos_Aires' },
+              reminders: {
+                useDefault: false,
+                overrides: [
+                  { method: 'popup', minutes: 24 * 60 },
+                  { method: 'popup', minutes: 2 * 60 }
+                ]
+              }
+            };
+
+            const calDestino = this.config.calendarId && this.config.calendarId !== 'primary' 
+              ? encodeURIComponent(this.config.calendarId) 
+              : 'primary';
+
+            await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calDestino}/events`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify(evento)
+            });
+          } catch (e) {
+            console.error("Error agendando en Calendar:", e);
+          }
+        },
+
+        // ==========================================
+        // ACCIONES GENERALES
+        // ==========================================
+        tituloSeccion(s) {
+          switch(s) {
+            case 'trabajos': return 'Boletas de Trabajos';
+            case 'clientes': return 'Odontólogos y Saldos';
+            case 'pacientes': return 'Historial de Pacientes';
+            case 'agenda': return 'Agenda Google Calendar';
+            case 'resumenes': return 'Resúmenes Mensuales';
+            case 'precios': return 'Lista de Precios';
+            case 'configuracion': return 'Configuración Google';
+            default: return s;
+          }
+        },
+
+        get trabajosFiltrados() {
+          const busq = this.filtroBusqueda.toLowerCase().trim();
+          if (!busq) return this.trabajos;
+          return this.trabajos.filter(t => {
+            const enCli = (t.clienteNombre || '').toLowerCase().includes(busq);
+            const enNro = (t.comprobanteNro || '').toLowerCase().includes(busq);
+            const enItems = t.items.some(i => 
+              (i.paciente || '').toLowerCase().includes(busq) || 
+              (i.servicio || '').toLowerCase().includes(busq) ||
+              (i.color || '').toLowerCase().includes(busq)
+            );
+            return enCli || enNro || enItems;
+          });
+        },
+
+        calcularTotalFacturado() { return this.trabajos.reduce((acc, t) => acc + (t.total || 0), 0); },
+        calcularTotalCobrado() { return this.pagos.reduce((acc, p) => acc + (p.monto || 0), 0); },
+        calcularSaldoGeneral() { return this.calcularTotalFacturado() - this.calcularTotalCobrado(); },
+        calcularFacturadoCliente(nombre) { return this.trabajos.filter(t => t.clienteNombre === nombre).reduce((acc, t) => acc + (t.total || 0), 0); },
+        calcularCobradoCliente(nombre) { return this.pagos.filter(p => p.clienteNombre === nombre).reduce((acc, p) => acc + (p.monto || 0), 0); },
+        calcularSaldoCliente(nombre) { return this.calcularFacturadoCliente(nombre) - this.calcularCobradoCliente(nombre); },
+
+        abrirNuevoTrabajo() {
+          this.nuevoTrabajo = {
+            clienteNombre: this.clientes[0]?.nombre || '',
+            fecha: new Date().toISOString().split('T')[0],
+            agendarCalendar: this.config.calendarConectado,
+            notas: '',
+            items: [
+              { servicio: 'CORONA FRESADA', paciente: '', color: 'A2', cantidad: 1, precioUnitario: 35000, precioTotal: 35000, mostrarSugerencias: false }
+            ]
+          };
+          this.modalNuevoTrabajo = true;
+        },
+
+        agregarItemTrabajo() {
+          this.nuevoTrabajo.items.push({
+            servicio: this.listaPrecios[0]?.nombre || '',
+            paciente: '',
+            color: 'A2',
+            cantidad: 1,
+            precioUnitario: this.listaPrecios[0]?.precio || 0,
+            precioTotal: this.listaPrecios[0]?.precio || 0,
+            mostrarSugerencias: false
+          });
+        },
+
+        quitarItemTrabajo(idx) { this.nuevoTrabajo.items.splice(idx, 1); },
+
+        alCambiarServicio(item) {
+          const enc = this.listaPrecios.find(p => p.nombre === item.servicio);
+          if (enc) {
+            item.precioUnitario = enc.precio;
+            item.precioTotal = item.precioUnitario * (item.cantidad || 1);
+          }
+        },
+
+        calcularSubtotalItem(item) { item.precioTotal = (item.cantidad || 0) * (item.precioUnitario || 0); },
+        calcularTotalNuevoTrabajo() { return this.nuevoTrabajo.items.reduce((acc, item) => acc + (item.precioTotal || 0), 0); },
+
+        async guardarTrabajo() {
+          if (!this.nuevoTrabajo.clienteNombre) {
+            alert('Por favor selecciona un odontólogo');
+            return;
+          }
+          if (this.nuevoTrabajo.items.length === 0) {
+            alert('Debes ingresar al menos un trabajo');
+            return;
+          }
+
+          const nroActual = this.config.siguienteNumero;
+          const comprobanteFormateado = this.formatoComprobante(nroActual);
+          this.config.siguienteNumero++;
+
+          const [y, m, d] = this.nuevoTrabajo.fecha.split('-');
+          const fechaFormateada = `${d}/${m}/${y}`;
+
+          this.nuevoTrabajo.items.forEach(it => {
+            this.registrarOActualizarPaciente(it.paciente, this.nuevoTrabajo.clienteNombre);
+          });
+
+          const nuevoObj = {
+            id: Date.now(),
+            comprobanteNro: comprobanteFormateado,
+            fecha: fechaFormateada,
+            clienteNombre: this.nuevoTrabajo.clienteNombre,
+            enviadoCalendar: this.nuevoTrabajo.agendarCalendar,
+            notas: this.nuevoTrabajo.notas,
+            items: JSON.parse(JSON.stringify(this.nuevoTrabajo.items)),
+            total: this.calcularTotalNuevoTrabajo()
+          };
+
+          this.trabajos.unshift(nuevoObj);
+          this.guardarStorage();
+
+          if (this.accessToken && this.config.sheetId) {
+            this.sincronizarTrabajoEnSheet(nuevoObj);
+          }
+          if (this.accessToken && nuevoObj.enviadoCalendar) {
+            this.agendarEnCalendarDirecto(nuevoObj);
+          }
+
+          this.modalNuevoTrabajo = false;
+          this.verComprobante(nuevoObj);
+        },
+
+        abrirRegistrarCobro(c) {
+          this.cobroForm = {
+            clienteNombre: c.nombre,
+            monto: this.calcularSaldoCliente(c.nombre) > 0 ? this.calcularSaldoCliente(c.nombre) : 0,
+            fecha: new Date().toISOString().split('T')[0],
+            medio: 'Transferencia Bancaria',
+            nota: ''
+          };
+          this.modalCobro = true;
+        },
+
+        guardarCobro() {
+          if (!this.cobroForm.monto || this.cobroForm.monto <= 0) {
+            alert('Ingresa un monto válido');
+            return;
+          }
+          const [y, m, d] = this.cobroForm.fecha.split('-');
+          const fechaFormateada = `${d}/${m}/${y}`;
+
+          this.pagos.unshift({
+            id: Date.now(),
+            fecha: fechaFormateada,
+            clienteNombre: this.cobroForm.clienteNombre,
+            monto: this.cobroForm.monto,
+            medio: this.cobroForm.medio,
+            nota: this.cobroForm.nota
+          });
+
+          this.guardarStorage();
+          this.modalCobro = false;
+          alert('✅ Cobro registrado. Saldo actualizado.');
+        },
+
+        generarResumenParaCliente(c) {
+          this.resumenFiltro.clienteNombre = c.nombre;
+          this.seccion = 'resumenes';
+          this.cargarResumenMensual();
+        },
+
+        cargarResumenMensual() {
+          if (!this.resumenFiltro.clienteNombre) return;
+          const cli = this.resumenFiltro.clienteNombre;
+          const mes = this.resumenFiltro.mes;
+
+          let itemsMes = [];
+          this.trabajos.filter(t => t.clienteNombre === cli).forEach(t => {
+            const partes = t.fecha.split('/');
+            if (partes[1] === mes) {
+              t.items.forEach(i => {
+                itemsMes.push({
+                  idItem: Math.random(),
+                  fecha: t.fecha,
+                  comprobanteNro: t.comprobanteNro,
+                  paciente: i.paciente,
+                  color: i.color,
+                  servicio: i.servicio,
+                  cantidad: i.cantidad,
+                  precioTotal: i.precioTotal
+                });
+              });
+            }
+          });
+
+          let pagosMes = this.pagos.filter(p => {
+            const partes = p.fecha.split('/');
+            return p.clienteNombre === cli && partes[1] === mes;
+          });
+
+          const totalFact = itemsMes.reduce((acc, i) => acc + (i.precioTotal || 0), 0);
+          const totalPag = pagosMes.reduce((acc, p) => acc + (p.monto || 0), 0);
+
+          this.resumenActual = {
+            clienteNombre: cli,
+            items: itemsMes,
+            pagos: pagosMes,
+            totalFacturado: totalFact,
+            totalPagado: totalPag,
+            saldoFinal: totalFact - totalPag
+          };
+        },
+
+        enviarWhatsAppResumen() {
+          const cliObj = this.clientes.find(c => c.nombre === this.resumenActual.clienteNombre);
+          const tel = cliObj?.telefono ? cliObj.telefono.replace(/\D/g, '') : '';
+          let lineas = this.resumenActual.items.map(i => `• ${i.fecha} - ${i.servicio} (Pac: ${i.paciente} | Color: ${i.color || 'A2'}) -> ${this.formatoMoneda(i.precioTotal)}`).join('\n');
+          let texto = `*Resumen de Trabajos - ${nombreMes(this.resumenFiltro.mes)}*\n` +
+                      `*Laboratorio Dental:* ${this.config.labNombre}\n` +
+                      `*Cliente:* ${this.resumenActual.clienteNombre}\n\n` +
+                      `*Detalle:*\n${lineas}\n\n` +
+                      `*Total Facturado:* ${this.formatoMoneda(this.resumenActual.totalFacturado)}\n` +
+                      `*Pagos Realizados:* ${this.formatoMoneda(this.resumenActual.totalPagado)}\n` +
+                      `*SALDO TOTAL A TRANSFERIR: ${this.formatoMoneda(this.resumenActual.saldoFinal)}*\n\n` +
+                      `Datos para transferir:\n*Alias/CBU:* ${this.config.labAlias || 'Solicitar por privado'}\n\n¡Muchas gracias!`;
+
+          const url = tel ? `https://wa.me/${tel}?text=${encodeURIComponent(texto)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+          window.open(url, '_blank');
+        },
+
+        imprimirArea() { window.print(); },
+        verComprobante(t) { this.comprobanteActual = JSON.parse(JSON.stringify(t)); this.modalComprobante = true; },
+
+        enviarWhatsAppBoleta(t) {
+          const cli = this.clientes.find(c => c.nombre === t.clienteNombre);
+          const tel = cli?.telefono ? cli.telefono.replace(/\D/g, '') : '';
+          let detalle = t.items.map(i => `• ${i.cantidad}x ${i.servicio} (Pac: ${i.paciente} - Color: ${i.color || 'A2'}) -> ${this.formatoMoneda(i.precioTotal)}`).join('\n');
+          let mensaje = `*Comprobante de Entrega - ${this.config.labNombre}*\n` +
+                        `*Boleta N°:* ${t.comprobanteNro}\n` +
+                        `*Fecha:* ${t.fecha}\n` +
+                        `*Odontólogo:* ${t.clienteNombre}\n\n` +
+                        `*Detalle:*\n${detalle}\n\n` +
+                        `*TOTAL: ${this.formatoMoneda(t.total)}*\n` +
+                        `(${this.numeroALetras(t.total)})\n\n¡Muchas gracias!`;
+
+          const url = tel ? `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+          window.open(url, '_blank');
+        },
+
+        abrirNuevoCliente() { this.nuevoCliente = { nombre: '', domicilio: '', localidad: 'La Plata', telefono: '' }; this.modalNuevoCliente = true; },
+        guardarNuevoCliente() {
+          if (!this.nuevoCliente.nombre) return;
+          const nuevo = {
+            id: Date.now(),
+            nombre: this.nuevoCliente.nombre.trim(),
+            domicilio: this.nuevoCliente.domicilio.trim(),
+            localidad: this.nuevoCliente.localidad.trim(),
+            telefono: this.nuevoCliente.telefono.trim()
+          };
+          this.clientes.push(nuevo);
+          if (this.modalNuevoTrabajo) this.nuevoTrabajo.clienteNombre = nuevo.nombre;
+          this.guardarStorage();
+          this.modalNuevoCliente = false;
+        },
+
+        obtenerDomicilioCliente(nombre) {
+          const c = this.clientes.find(cli => cli.nombre === nombre);
+          return c ? (c.domicilio || c.localidad || 'LA PLATA') : 'LA PLATA';
+        },
+        obtenerTelefonoCliente(nombre) {
+          const c = this.clientes.find(cli => cli.nombre === nombre);
+          return c ? (c.telefono || '-') : '-';
+        },
+
+        formatoMoneda(val) {
+          return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(val || 0);
+        },
+        formatoComprobante(nro) {
+          const s = "00000000" + nro;
+          return "0000-" + s.substring(s.length - 8);
+        },
+        numeroALetras(n) {
+          if (!n || n === 0) return 'CERO';
+          n = Math.round(n);
+          const unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+          const decenas = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+          const especiales = {
+            11: 'ONCE', 12: 'DOCE', 13: 'TRECE', 14: 'CATORCE', 15: 'QUINCE',
+            16: 'DIECISÉIS', 17: 'DIECISIETE', 18: 'DIECIOCHO', 19: 'DIECINUEVE',
+            21: 'VEINTIUNO', 22: 'VEINTIDÓS', 23: 'VEINTITRÉS', 24: 'VEINTICUATRO', 25: 'VEINTICINCO',
+            26: 'VEINTISÉIS', 27: 'VEINTISIETE', 28: 'VEINTIOCHO', 29: 'VEINTINUEVE'
+          };
+          const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+          function seccion(num) {
+            let res = '';
+            const c = Math.floor(num / 100);
+            const resto = num % 100;
+            const d = Math.floor(resto / 10);
+            const u = resto % 10;
+            if (num === 100) return 'CIEN';
+            if (c > 0) res += centenas[c] + ' ';
+            if (especiales[resto]) {
+              res += especiales[resto];
+            } else {
+              if (d > 0) {
+                res += decenas[d];
+                if (u > 0) res += ' Y ' + unidades[u];
+              } else if (u > 0) {
+                res += unidades[u];
+              }
+            }
+            return res.trim();
+          }
+
+          if (n < 1000) return seccion(n);
+          if (n < 1000000) {
+            const miles = Math.floor(n / 1000);
+            const resto = n % 1000;
+            const textoMiles = (miles === 1) ? 'MIL' : seccion(miles) + ' MIL';
+            return resto > 0 ? (textoMiles + ' ' + seccion(resto)).trim() : textoMiles;
+          }
+          if (n < 1000000000) {
+            const millones = Math.floor(n / 1000000);
+            const resto = n % 1000000;
+            const textoMillones = (millones === 1) ? 'UN MILLÓN' : seccion(millones) + ' MILLONES';
+            return resto > 0 ? (textoMillones + ' ' + this.numeroALetras(resto)).trim() : textoMillones;
+          }
+          return n.toString();
+        }
+      };
+    }
+
+    function nombreMes(m) {
+      const meses = { '01':'Enero', '02':'Febrero', '03':'Marzo', '04':'Abril', '05':'Mayo', '06':'Junio', '07':'Julio', '08':'Agosto', '09':'Septiembre', '10':'Octubre', '11':'Noviembre', '12':'Diciembre' };
+      return meses[m] || 'Mes';
+    }
+  </script>
+</body>
+</html>
