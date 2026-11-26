@@ -346,41 +346,94 @@
       </section>
 
       <!-- ======================================================== -->
+            <!-- ======================================================== -->
       <!-- SECCION 2: ODONTÓLOGOS Y CUENTAS CORRIENTES              -->
       <!-- ======================================================== -->
       <section x-show="seccion === 'clientes'" class="space-y-6">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 class="font-bold text-lg text-slate-900">Odontólogos y Cuentas Corrientes</h3>
-            <p class="text-xs text-slate-500">Historial de trabajos entregados, cobros/transferencias y saldos</p>
+            <h3 class="font-bold text-lg text-slate-900">Base de Datos de Odontólogos y Cuentas Corrientes</h3>
+            <p class="text-xs text-slate-500">Gestión de profesionales, estado (activo/baja) y balances contables sincronizados con Google Sheets</p>
           </div>
-          <button @click="abrirNuevoCliente()" class="bg-blue-600 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
-            <i class="fa-solid fa-user-plus"></i>
-            <span>Nuevo Odontólogo</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button x-show="config.sheetId && googleUser" @click="sincronizarOdontologosEnSheet(true)" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition" title="Sincronizar base de datos con Google Sheets">
+              <i class="fa-solid fa-arrows-rotate"></i>
+              <span class="hidden sm:inline">Sincronizar Sheet</span>
+            </button>
+            <button @click="abrirNuevoCliente()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+              <i class="fa-solid fa-user-doctor"></i>
+              <span>+ Nuevo Odontólogo</span>
+            </button>
+          </div>
         </div>
 
+        <!-- Filtros y Búsqueda -->
+        <div class="bg-white p-3 md:p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            <!-- Barra de Búsqueda -->
+            <div class="relative flex-1">
+              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+              <input type="text" x-model="filtroBusquedaDoctor" placeholder="Buscar por nombre, teléfono, consultorio o localidad..." class="w-full pl-10 pr-4 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+            </div>
+
+            <!-- Píldoras de Estado (Todos / Activos / Dados de baja) -->
+            <div class="flex items-center p-1 bg-slate-100 rounded-lg text-xs font-semibold shrink-0">
+              <button @click="filtroEstadoDoctor = 'activos'" :class="filtroEstadoDoctor === 'activos' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="px-3 py-1.5 rounded-md transition flex items-center gap-1">
+                <span>Activos</span>
+                <span class="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.2 rounded-full" x-text="clientesActivos.length"></span>
+              </button>
+              <button @click="filtroEstadoDoctor = 'todos'" :class="filtroEstadoDoctor === 'todos' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="px-3 py-1.5 rounded-md transition flex items-center gap-1">
+                <span>Todos</span>
+                <span class="bg-slate-200 text-slate-700 text-[10px] px-1.5 py-0.2 rounded-full" x-text="clientes.length"></span>
+              </button>
+              <button @click="filtroEstadoDoctor = 'inactivos'" :class="filtroEstadoDoctor === 'inactivos' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="px-3 py-1.5 rounded-md transition flex items-center gap-1">
+                <span>Dados de baja</span>
+                <span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded-full" x-text="clientesInactivos.length"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid de Odontólogos -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <template x-for="c in clientes" :key="c.id">
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-blue-300 transition">
+          <template x-for="c in clientesFiltrados" :key="c.id">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-blue-300 transition" :class="c.estado === 'Inactivo' ? 'opacity-85 border-amber-200 bg-amber-50/20' : ''">
               <div>
                 <div class="flex items-start justify-between">
                   <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 font-bold flex items-center justify-center text-sm">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold shrink-0" :class="c.estado === 'Inactivo' ? 'bg-slate-100 text-slate-400' : 'bg-blue-50 text-blue-600'">
                       <i class="fa-solid fa-user-doctor text-base"></i>
                     </div>
                     <div>
-                      <h4 class="font-bold text-slate-900 leading-tight" x-text="c.nombre"></h4>
+                      <h4 class="font-bold text-slate-900 leading-tight flex items-center gap-1.5">
+                        <span x-text="c.nombre"></span>
+                      </h4>
                       <span class="text-xs text-slate-400" x-text="c.localidad || 'La Plata'"></span>
                     </div>
+                  </div>
+
+                  <!-- Badge de Estado -->
+                  <div>
+                    <template x-if="c.estado !== 'Inactivo'">
+                      <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Activo
+                      </span>
+                    </template>
+                    <template x-if="c.estado === 'Inactivo'">
+                      <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-300">
+                        <i class="fa-solid fa-ban text-[9px]"></i> Dado de baja
+                      </span>
+                    </template>
                   </div>
                 </div>
 
                 <div class="mt-3 space-y-1 text-xs text-slate-500">
                   <p class="flex items-center gap-2"><i class="fa-solid fa-location-dot w-4 text-slate-400"></i><span x-text="c.domicilio || 'Domicilio no cargado'"></span></p>
                   <p class="flex items-center gap-2"><i class="fa-solid fa-phone w-4 text-slate-400"></i><span x-text="c.telefono || 'Sin teléfono'"></span></p>
+                  <p x-show="c.notas" class="flex items-center gap-2 text-[11px] text-slate-400 italic"><i class="fa-solid fa-comment-dots w-4 text-slate-400"></i><span x-text="c.notas"></span></p>
                 </div>
 
+                <!-- Balance Contable -->
                 <div class="mt-4 p-3 bg-slate-50 rounded-xl space-y-2 text-xs border border-slate-100">
                   <div class="flex justify-between items-center">
                     <span class="text-slate-500">Total Trabajos Entregados:</span>
@@ -397,24 +450,50 @@
                 </div>
               </div>
 
-              <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs gap-2">
-                <button @click="abrirRegistrarCobro(c)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition">
-                  <i class="fa-solid fa-dollar-sign"></i>
-                  <span>Registrar Cobro</span>
-                </button>
+              <!-- Acciones del Odontólogo -->
+              <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-1.5">
+                  <button @click="abrirRegistrarCobro(c)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition shadow-sm">
+                    <i class="fa-solid fa-dollar-sign"></i>
+                    <span>Cobro</span>
+                  </button>
 
-                <button @click="generarResumenParaCliente(c)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition">
-                  <i class="fa-solid fa-calendar-check text-blue-600"></i>
-                  <span>Resumen Mes</span>
-                </button>
+                  <button @click="generarResumenParaCliente(c)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition">
+                    <i class="fa-solid fa-calendar-check text-blue-600"></i>
+                    <span>Resumen</span>
+                  </button>
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <!-- Editar Odontólogo -->
+                  <button @click="abrirEditarCliente(c)" class="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 transition" title="Editar datos del odontólogo">
+                    <i class="fa-solid fa-pen-to-square text-sm"></i>
+                  </button>
+
+                  <!-- Dar de baja o Reactivar -->
+                  <template x-if="c.estado !== 'Inactivo'">
+                    <button @click="darDeBajaCliente(c)" class="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition" title="Dar de baja (se conservan sus datos y boletas históricas)">
+                      <i class="fa-solid fa-user-slash text-sm"></i>
+                    </button>
+                  </template>
+                  <template x-if="c.estado === 'Inactivo'">
+                    <button @click="reactivarCliente(c)" class="p-1.5 text-emerald-600 hover:text-emerald-800 rounded-lg hover:bg-emerald-50 transition" title="Reactivar odontólogo">
+                      <i class="fa-solid fa-user-check text-sm"></i>
+                    </button>
+                  </template>
+                </div>
               </div>
             </div>
           </template>
         </div>
+
+        <div x-show="clientesFiltrados.length === 0" class="text-center py-12 bg-white rounded-xl border border-slate-200 text-slate-400">
+          <i class="fa-solid fa-user-doctor text-4xl mb-3 opacity-40"></i>
+          <p class="font-medium text-sm">No se encontraron odontólogos con este criterio.</p>
+        </div>
       </section>
 
-      <!-- ======================================================== -->
-      <!-- SECCION 3: PACIENTES (HISTORIAL Y MULTI-DOCTOR)          -->
+<!-- SECCION 3: PACIENTES (HISTORIAL Y MULTI-DOCTOR)          -->
       <!-- ======================================================== -->
       <section x-show="seccion === 'pacientes'" class="space-y-6">
         <div class="flex items-center justify-between">
@@ -894,6 +973,414 @@
     </button>
   </nav>
 
+    <!-- ======================================================== -->
+  <!-- MODAL: CARGAR TRABAJO TERMINADO                          -->
+  <!-- ======================================================== -->
+  <div x-show="modalNuevoTrabajo" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-6" x-transition>
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto" @click.outside="modalNuevoTrabajo = false">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-base md:text-lg">Cargar Trabajo Terminado</h3>
+          <p class="text-xs text-slate-400">Comprobante N°: <span class="font-mono text-blue-300 font-bold" x-text="formatoComprobante(config.siguienteNumero)"></span></p>
+        </div>
+        <button @click="modalNuevoTrabajo = false" class="text-slate-400 hover:text-white p-1 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form @submit.prevent="guardarTrabajo()" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Odontólogo / Cliente *</label>
+            <div class="flex gap-2">
+              <select x-model="nuevoTrabajo.clienteNombre" required class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold">
+                <option value="">-- Seleccionar Odontólogo --</option>
+                <template x-for="c in clientesActivos" :key="c.id">
+                  <option :value="c.nombre" x-text="c.nombre + (c.localidad ? ' (' + c.localidad + ')' : '')"></option>
+                </template>
+              </select>
+              <button type="button" @click="abrirNuevoCliente()" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-bold text-sm border border-blue-200 transition" title="Nuevo Odontólogo">+</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Fecha de Salida / Entrega *</label>
+            <input type="date" x-model="nuevoTrabajo.fecha" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium">
+          </div>
+        </div>
+
+        <div class="p-3 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center justify-between">
+          <span class="text-blue-900 font-semibold flex items-center gap-2">
+            <i class="fa-solid fa-calendar-day text-blue-600"></i> Agendar entrega en mi Google Calendar
+          </span>
+          <input type="checkbox" x-model="nuevoTrabajo.agendarCalendar" class="w-4 h-4 text-blue-600 rounded">
+        </div>
+
+        <!-- Detalle de Trabajos con Paciente Autocompletable -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="font-bold text-slate-800 text-sm">Detalle de Trabajos</label>
+            <button type="button" @click="agregarItemTrabajo()" class="text-blue-600 hover:text-blue-700 font-bold text-xs flex items-center gap-1">
+              <i class="fa-solid fa-plus-circle"></i> + Agregar Renglón
+            </button>
+          </div>
+
+          <div class="space-y-3">
+            <template x-for="(item, idx) in nuevoTrabajo.items" :key="idx">
+              <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 relative">
+                <button type="button" x-show="nuevoTrabajo.items.length > 1" @click="quitarItemTrabajo(idx)" class="absolute top-2.5 right-2.5 text-slate-400 hover:text-rose-500 p-1">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                  <!-- Servicio -->
+                  <div class="sm:col-span-6">
+                    <label class="block text-[11px] text-slate-500 font-medium mb-0.5">Servicio / Prótesis</label>
+                    <select x-model="item.servicio" @change="alCambiarServicio(item)" required class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold uppercase bg-white">
+                      <option value="">-- Elegir servicio --</option>
+                      <template x-for="p in listaPrecios" :key="p.nombre">
+                        <option :value="p.nombre" x-text="p.nombre + ' - ' + formatoMoneda(p.precio)"></option>
+                      </template>
+                    </select>
+                  </div>
+
+                  <!-- Paciente Autocompletable (Smart) -->
+                  <div class="sm:col-span-6 relative">
+                    <label class="block text-[11px] text-slate-500 font-medium mb-0.5">
+                      Paciente / Pieza <span class="text-blue-600 font-normal">(Escribe para buscar o crear)</span>
+                    </label>
+                    <input type="text" x-model="item.paciente" @input="item.mostrarSugerencias = true" placeholder="PZ 16 / Juan Pérez" required class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-semibold">
+                    
+                    <!-- Menú desplegable predictivo -->
+                    <div x-show="item.mostrarSugerencias && item.paciente && filtrarPacientesSugeridos(item.paciente).length > 0" @click.outside="item.mostrarSugerencias = false" class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-300 rounded-lg shadow-xl max-h-36 overflow-y-auto divide-y divide-slate-100">
+                      <template x-for="sug in filtrarPacientesSugeridos(item.paciente)" :key="sug.id">
+                        <div @click="item.paciente = sug.nombre; item.mostrarSugerencias = false" class="p-2 hover:bg-blue-50 cursor-pointer flex items-center justify-between text-xs">
+                          <div>
+                            <strong class="text-slate-800" x-text="sug.nombre"></strong>
+                            <span class="block text-[10px] text-slate-400" x-text="(sug.odontologos || []).join(', ')"></span>
+                          </div>
+                          <span class="text-[10px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.5 rounded">Existente</span>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-3 sm:grid-cols-12 gap-2">
+                  <div class="col-span-1 sm:col-span-4">
+                    <label class="block text-[11px] text-purple-700 font-bold mb-0.5">Color / Tono</label>
+                    <input type="text" x-model="item.color" placeholder="A2, A3, Bleach..." class="w-full px-2.5 py-1.5 border border-purple-300 rounded-lg text-xs bg-white font-bold text-purple-800">
+                  </div>
+
+                  <div class="col-span-1 sm:col-span-2">
+                    <label class="block text-[11px] text-slate-500 font-medium mb-0.5">Cant.</label>
+                    <input type="number" min="1" x-model.number="item.cantidad" @input="calcularSubtotalItem(item)" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs text-center font-bold bg-white">
+                  </div>
+
+                  <div class="col-span-1 sm:col-span-3">
+                    <label class="block text-[11px] text-slate-500 font-medium mb-0.5">Precio Unit.</label>
+                    <input type="number" x-model.number="item.precioUnitario" @input="calcularSubtotalItem(item)" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono font-bold bg-white text-right">
+                  </div>
+
+                  <div class="col-span-3 sm:col-span-3 flex flex-col justify-end text-right">
+                    <span class="block text-[11px] text-slate-500 font-medium">Subtotal</span>
+                    <span class="font-bold text-slate-900 text-sm font-mono py-1" x-text="formatoMoneda(item.precioTotal)"></span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="p-4 bg-slate-900 text-white rounded-xl space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Total Comprobante:</span>
+            <span class="text-2xl font-bold text-blue-400 font-mono" x-text="formatoMoneda(calcularTotalNuevoTrabajo())"></span>
+          </div>
+          <div class="text-[11px] text-slate-300 italic pt-1 border-t border-slate-800">
+            En Letras: <strong class="text-white not-italic uppercase" x-text="numeroALetras(calcularTotalNuevoTrabajo())"></strong>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Observaciones</label>
+          <input type="text" x-model="nuevoTrabajo.notas" placeholder="Ej: Corona para cementar..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs">
+        </div>
+
+        <div class="pt-3 flex items-center justify-end gap-3 border-t border-slate-200">
+          <button type="button" @click="modalNuevoTrabajo = false" class="px-4 py-2 text-slate-600 font-medium">Cancelar</button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center gap-2">
+            <i class="fa-solid fa-check"></i>
+            <span>Guardar y Ver Boleta</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: REGISTRAR O EDITAR ODONTÓLOGO                    -->
+  <!-- ======================================================== -->
+  <div x-show="modalCliente" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" x-transition>
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden" @click.outside="modalCliente = false">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <h4 class="font-bold text-base" x-text="clienteForm.id ? 'Editar Odontólogo' : 'Registrar Nuevo Odontólogo'"></h4>
+          <p class="text-[11px] text-slate-400">Base de datos sincronizada con Google Sheets</p>
+        </div>
+        <button @click="modalCliente = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form @submit.prevent="guardarClienteModal()" class="p-5 space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nombre y Apellido / Clínica *</label>
+          <input type="text" x-model="clienteForm.nombre" placeholder="DR. CARLOS MENÉNDEZ" required class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold uppercase">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Domicilio / Consultorio</label>
+          <input type="text" x-model="clienteForm.domicilio" placeholder="Calle 12 N° 540" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Localidad</label>
+            <input type="text" x-model="clienteForm.localidad" placeholder="La Plata" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Teléfono / WhatsApp</label>
+            <input type="text" x-model="clienteForm.telefono" placeholder="221 555-1234" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Estado del Odontólogo</label>
+          <select x-model="clienteForm.estado" class="w-full px-3 py-2 border border-slate-300 rounded-lg font-semibold">
+            <option value="Activo">Activo (habilitado para cargar nuevos trabajos)</option>
+            <option value="Inactivo">Dado de baja (conserva historial, boletas y saldo)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Notas u Observaciones</label>
+          <input type="text" x-model="clienteForm.notas" placeholder="Ej: Especialista en coronas..." class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
+          <button type="button" @click="modalCliente = false" class="px-3 py-2 text-slate-600 font-medium">Cancelar</button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg shadow transition">
+            <span x-text="clienteForm.id ? 'Guardar Cambios' : 'Guardar Odontólogo'"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: CREAR / EDITAR PACIENTE                           -->
+  <!-- ======================================================== -->
+  <div x-show="modalPaciente" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" x-transition>
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden" @click.outside="modalPaciente = false">
+      <div class="px-5 py-4 bg-purple-800 text-white flex items-center justify-between">
+        <h4 class="font-bold text-base" x-text="pacienteForm.id ? 'Editar Paciente' : 'Nuevo Paciente'"></h4>
+        <button @click="modalPaciente = false" class="text-purple-200 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form @submit.prevent="guardarPacienteModal()" class="p-5 space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nombre y Apellido del Paciente *</label>
+          <input type="text" x-model="pacienteForm.nombre" placeholder="María González" required class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Teléfono (opcional)</label>
+            <input type="text" x-model="pacienteForm.telefono" placeholder="221 444-1234" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Email (opcional)</label>
+            <input type="email" x-model="pacienteForm.email" placeholder="maria@gmail.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Notas clínicas / Piezas habituales</label>
+          <input type="text" x-model="pacienteForm.notas" placeholder="Ej: Color A2, alérgico a metales..." class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" @click="modalPaciente = false" class="px-3 py-2 text-slate-600">Cancelar</button>
+          <button type="submit" class="bg-purple-700 hover:bg-purple-800 text-white font-bold px-4 py-2 rounded-lg">Guardar Paciente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: REGISTRAR COBRO / TRANSFERENCIA                   -->
+  <!-- ======================================================== -->
+  <div x-show="modalCobro" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" x-transition>
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden" @click.outside="modalCobro = false">
+      <div class="px-5 py-4 bg-emerald-700 text-white flex items-center justify-between">
+        <div>
+          <h4 class="font-bold text-base">Registrar Cobro / Transferencia</h4>
+          <p class="text-xs text-emerald-100" x-text="cobroForm.clienteNombre"></p>
+        </div>
+        <button @click="modalCobro = false" class="text-emerald-200 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form @submit.prevent="guardarCobro()" class="p-5 space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Monto Recibido ($) *</label>
+          <input type="number" x-model.number="cobroForm.monto" placeholder="50000" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-base font-bold font-mono text-slate-900">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Fecha de Cobro *</label>
+            <input type="date" x-model="cobroForm.fecha" required class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Medio</label>
+            <select x-model="cobroForm.medio" class="w-full px-3 py-2 border border-slate-300 rounded-lg font-medium">
+              <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+              <option value="Mercado Pago">Mercado Pago</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Seña">Seña Anticipada</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nota o N° de Comprobante</label>
+          <input type="text" x-model="cobroForm.nota" placeholder="Comprobante #12345" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" @click="modalCobro = false" class="px-3 py-2 text-slate-600">Cancelar</button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg">Guardar Cobro</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: VISOR DE COMPROBANTE (EXACTO A LA FOTO)           -->
+  <!-- ======================================================== -->
+  <div x-show="modalComprobante" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4" x-transition>
+    <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-300 overflow-hidden my-auto" @click.outside="modalComprobante = false">
+      <div class="no-print bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+        <span class="text-xs font-semibold flex items-center gap-2">
+          <i class="fa-solid fa-file-invoice text-blue-400"></i> Comprobante de Entrega
+        </span>
+        <div class="flex items-center gap-2">
+          <button @click="imprimirArea()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition">
+            <i class="fa-solid fa-print"></i> <span>Imprimir / PDF</span>
+          </button>
+          <button @click="enviarWhatsAppBoleta(comprobanteActual)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition">
+            <i class="fa-brands fa-whatsapp"></i> <span>WhatsApp</span>
+          </button>
+          <button @click="modalComprobante = false" class="text-slate-400 hover:text-white p-1 text-base ml-2">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="print-area" class="p-6 md:p-8 bg-white text-black font-sans text-xs">
+        <div class="flex justify-between items-start mb-3">
+          <span class="font-bold text-sm">Comprobante interno nro.:</span>
+          <span class="font-mono text-sm font-semibold tracking-wider" x-text="comprobanteActual.comprobanteNro"></span>
+        </div>
+
+        <div class="flex justify-between items-start mb-4">
+          <div></div>
+          <div class="text-right">
+            <span class="font-bold mr-2">Fecha:</span>
+            <span x-text="comprobanteActual.fecha"></span>
+          </div>
+        </div>
+
+        <!-- Recuadro del Cliente -->
+        <div class="border border-black p-3 mb-5 space-y-1">
+          <div class="flex justify-between">
+            <div>
+              <span class="font-bold mr-2">Cliente:</span>
+              <span class="font-bold uppercase" x-text="comprobanteActual.clienteNombre"></span>
+            </div>
+            <div class="font-mono text-slate-600">( ## )</div>
+          </div>
+          <div class="flex justify-between">
+            <div>
+              <span class="font-bold mr-2">Domicilio:</span>
+              <span class="uppercase" x-text="obtenerDomicilioCliente(comprobanteActual.clienteNombre)"></span>
+            </div>
+            <div class="font-mono">( 1900 )</div>
+          </div>
+          <div>
+            <span class="font-bold mr-2">T.E.:</span>
+            <span x-text="obtenerTelefonoCliente(comprobanteActual.clienteNombre)"></span>
+          </div>
+        </div>
+
+        <!-- Tabla de Trabajos -->
+        <table class="w-full border-collapse mb-6">
+          <thead>
+            <tr class="bg-neutral-300 border-t border-b border-black text-left text-xs">
+              <th class="py-1 px-3 w-16 text-center border-r border-black font-semibold">Cant.</th>
+              <th class="py-1 px-3 border-r border-black font-semibold">Descripción del Trabajo</th>
+              <th class="py-1 px-3 text-right font-semibold">Precio Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(item, i) in comprobanteActual.items" :key="i">
+              <tr class="border-b border-neutral-200">
+                <td class="py-2.5 px-3 text-center align-top font-bold" x-text="item.cantidad"></td>
+                <td class="py-2.5 px-3 align-top">
+                  <div class="font-bold uppercase tracking-tight" x-text="item.servicio"></div>
+                  <div class="text-neutral-700 mt-0.5">
+                    Pac.: <span class="font-semibold" x-text="item.paciente"></span>
+                    <span x-show="item.color" class="ml-2 font-bold text-neutral-900" x-text="'(Color: ' + item.color + ')'"></span>
+                  </div>
+                </td>
+                <td class="py-2.5 px-3 text-right align-top font-mono font-bold" x-text="formatoMoneda(item.precioTotal)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+
+        <!-- Total y En Letras -->
+        <div class="flex justify-end items-center mb-6">
+          <div class="flex items-center gap-3">
+            <span class="font-bold text-sm">Total -&gt;</span>
+            <div class="bg-neutral-300 border border-black px-6 py-2 text-base font-bold font-mono" x-text="formatoMoneda(comprobanteActual.total)"></div>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-neutral-300 text-xs">
+          <span class="font-bold">En Letras:</span>
+          <span class="uppercase ml-1" x-text="numeroALetras(comprobanteActual.total)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: AGREGAR O EDITAR PRECIO DE CATÁLOGO               -->
+  <!-- ======================================================== -->
+  <div x-show="modalPrecio" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" x-transition>
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden" @click.outside="modalPrecio = false">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <h4 class="font-bold text-base" x-text="itemPrecioForm.index !== null ? 'Editar Servicio' : 'Nuevo Servicio'"></h4>
+        <button @click="modalPrecio = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form @submit.prevent="guardarItemPrecio()" class="p-5 space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nombre del Servicio / Prótesis *</label>
+          <input type="text" x-model="itemPrecioForm.nombre" placeholder="CORONA FRESADA" required class="w-full px-3 py-2 border border-slate-300 rounded-lg uppercase">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Categoría</label>
+          <input type="text" x-model="itemPrecioForm.categoria" placeholder="Prótesis Fija / Removible / Perno" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Precio Unitario Sugerido ($) *</label>
+          <input type="number" x-model.number="itemPrecioForm.precio" placeholder="35000" required class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold font-mono">
+        </div>
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" @click="modalPrecio = false" class="px-3 py-2 text-slate-600">Cancelar</button>
+          <button type="submit" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg">Guardar en Lista</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==================== LOGICA JAVASCRIPT ==================== -->
   <script>
     const GOOGLE_CLIENT_ID = '506049007988-ggov0cljobpv5vb5fsb7fe848991klpa.apps.googleusercontent.com';
@@ -904,6 +1391,8 @@
         seccion: 'trabajos',
         filtroBusqueda: '',
         filtroBusquedaPaciente: '',
+        filtroBusquedaDoctor: '',
+        filtroEstadoDoctor: 'activos', // 'activos' | 'todos' | 'inactivos'
         
         googleUser: null,
         tokenClient: null,
@@ -911,11 +1400,10 @@
 
         modalNuevoTrabajo: false,
         modalComprobante: false,
-        modalNuevoCliente: false,
+        modalCliente: false,
         modalPaciente: false,
         modalCobro: false,
         modalPrecio: false,
-        editandoPrecioIndex: null,
 
         config: {
           sheetUrl: '',
@@ -941,9 +1429,9 @@
         ],
 
         clientes: [
-          { id: 1, nombre: 'MICAELA TRSZCZ (C)', domicilio: 'LA PLATA', localidad: 'La Plata', telefono: '221 456-7890' },
-          { id: 2, nombre: 'DR. ESTEBAN MARTÍNEZ', domicilio: 'Calle 12 N° 540', localidad: 'City Bell', telefono: '221 512-3456' },
-          { id: 3, nombre: 'DRA. LAURA BENÍTEZ', domicilio: 'Av. 7 N° 1240', localidad: 'La Plata', telefono: '221 698-7412' }
+          { id: 1, nombre: 'MICAELA TRSZCZ (C)', domicilio: 'LA PLATA', localidad: 'La Plata', telefono: '221 456-7890', estado: 'Activo', fechaAlta: '01/11/2026', notas: 'Titular' },
+          { id: 2, nombre: 'DR. ESTEBAN MARTÍNEZ', domicilio: 'Calle 12 N° 540', localidad: 'City Bell', telefono: '221 512-3456', estado: 'Activo', fechaAlta: '02/11/2026', notas: 'Consultorio Central' },
+          { id: 3, nombre: 'DRA. LAURA BENÍTEZ', domicilio: 'Av. 7 N° 1240', localidad: 'La Plata', telefono: '221 698-7412', estado: 'Activo', fechaAlta: '03/11/2026', notas: 'Especialista implantes' }
         ],
 
         pacientes: [
@@ -979,18 +1467,17 @@
           items: []
         },
 
+        clienteForm: { id: null, nombre: '', domicilio: '', localidad: 'La Plata', telefono: '', estado: 'Activo', notas: '' },
         pacienteForm: { id: null, nombre: '', telefono: '', email: '', notas: '', odontologos: [] },
         cobroForm: { clienteNombre: '', monto: 0, fecha: new Date().toISOString().split('T')[0], medio: 'Transferencia Bancaria', nota: '' },
         comprobanteActual: { comprobanteNro: '', fecha: '', clienteNombre: '', items: [], total: 0 },
         resumenFiltro: { clienteNombre: '', mes: '11' },
         resumenActual: { clienteNombre: '', items: [], pagos: [], totalFacturado: 0, totalPagado: 0, saldoFinal: 0 },
-        nuevoCliente: { nombre: '', domicilio: '', localidad: 'La Plata', telefono: '' },
+        itemPrecioForm: { index: null, nombre: '', categoria: '', precio: 0 },
 
         initApp() {
-          // Clave de almacenamiento estable y permanente
           const STORAGE_KEY = 'dentallab_db_permanent';
           
-          // Intentar cargar de la clave permanente o migrar de versiones previas
           let guardado = localStorage.getItem(STORAGE_KEY) || 
                          localStorage.getItem('dentallab_oauth_data_v4') || 
                          localStorage.getItem('dentallab_oauth_data_v3') || 
@@ -1002,7 +1489,10 @@
             try {
               const data = JSON.parse(guardado);
               if (data.trabajos && data.trabajos.length > 0) this.trabajos = data.trabajos;
-              if (data.clientes && data.clientes.length > 0) this.clientes = data.clientes;
+              if (data.clientes && data.clientes.length > 0) {
+                // Asegurar que cada cliente tenga propiedad estado
+                this.clientes = data.clientes.map(c => Object.assign({ estado: 'Activo', fechaAlta: '01/11/2026', notas: '' }, c));
+              }
               if (data.pacientes && data.pacientes.length > 0) this.pacientes = data.pacientes;
               if (data.pagos) this.pagos = data.pagos;
               if (data.listaPrecios && data.listaPrecios.length > 0) this.listaPrecios = data.listaPrecios;
@@ -1013,11 +1503,12 @@
               console.error("Error al restaurar datos:", e);
             }
           }
-          if (this.clientes.length > 0) {
+          if (this.clientesActivos.length > 0) {
+            this.resumenFiltro.clienteNombre = this.clientesActivos[0].nombre;
+          } else if (this.clientes.length > 0) {
             this.resumenFiltro.clienteNombre = this.clientes[0].nombre;
           }
 
-          // Guardar de inmediato en la clave permanente
           this.guardarStorage();
 
           const checkGIS = setInterval(() => {
@@ -1055,11 +1546,149 @@
         },
 
         // ==========================================
+        // ODONTÓLOGOS (CLIENTES) - GETTERS & ACCIONES
+        // ==========================================
+        get clientesActivos() {
+          return this.clientes.filter(c => c.estado !== 'Inactivo');
+        },
+
+        get clientesInactivos() {
+          return this.clientes.filter(c => c.estado === 'Inactivo');
+        },
+
+        get clientesFiltrados() {
+          let lista = this.clientes;
+          if (this.filtroEstadoDoctor === 'activos') {
+            lista = this.clientesActivos;
+          } else if (this.filtroEstadoDoctor === 'inactivos') {
+            lista = this.clientesInactivos;
+          }
+          const b = (this.filtroBusquedaDoctor || '').toLowerCase().trim();
+          if (!b) return lista;
+          return lista.filter(c => {
+            const nom = (c.nombre || '').toLowerCase().includes(b);
+            const dom = (c.domicilio || '').toLowerCase().includes(b);
+            const loc = (c.localidad || '').toLowerCase().includes(b);
+            const tel = (c.telefono || '').toLowerCase().includes(b);
+            const not = (c.notas || '').toLowerCase().includes(b);
+            return nom || dom || loc || tel || not;
+          });
+        },
+
+        abrirNuevoCliente() {
+          this.clienteForm = {
+            id: null,
+            nombre: '',
+            domicilio: '',
+            localidad: 'La Plata',
+            telefono: '',
+            estado: 'Activo',
+            notas: ''
+          };
+          this.modalCliente = true;
+        },
+
+        abrirEditarCliente(c) {
+          this.clienteForm = {
+            id: c.id,
+            nombre: c.nombre,
+            domicilio: c.domicilio || '',
+            localidad: c.localidad || 'La Plata',
+            telefono: c.telefono || '',
+            estado: c.estado || 'Activo',
+            notas: c.notas || ''
+          };
+          this.modalCliente = true;
+        },
+
+        async guardarClienteModal() {
+          if (!this.clienteForm.nombre || !this.clienteForm.nombre.trim()) {
+            alert('Por favor ingresa el nombre del odontólogo.');
+            return;
+          }
+          const limpio = this.clienteForm.nombre.trim().toUpperCase();
+
+          if (this.clienteForm.id) {
+            // Editar existente
+            const idx = this.clientes.findIndex(c => c.id === this.clienteForm.id);
+            if (idx !== -1) {
+              const oldNombre = this.clientes[idx].nombre;
+              this.clientes[idx] = Object.assign(this.clientes[idx], {
+                nombre: limpio,
+                domicilio: this.clienteForm.domicilio.trim(),
+                localidad: this.clienteForm.localidad.trim(),
+                telefono: this.clienteForm.telefono.trim(),
+                estado: this.clienteForm.estado,
+                notas: this.clienteForm.notas.trim()
+              });
+              // Si cambió el nombre, actualizar en trabajos históricos y pagos
+              if (oldNombre !== limpio) {
+                this.trabajos.forEach(t => { if (t.clienteNombre === oldNombre) t.clienteNombre = limpio; });
+                this.pagos.forEach(p => { if (p.clienteNombre === oldNombre) p.clienteNombre = limpio; });
+              }
+            }
+          } else {
+            // Nuevo odontólogo
+            const existe = this.clientes.some(c => c.nombre.toUpperCase() === limpio);
+            if (existe) {
+              alert('Ya existe un odontólogo registrado con ese nombre.');
+              return;
+            }
+            const hoy = new Date();
+            const fechaStr = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth()+1).padStart(2, '0')}/${hoy.getFullYear()}`;
+            const nuevo = {
+              id: Date.now(),
+              nombre: limpio,
+              domicilio: this.clienteForm.domicilio.trim(),
+              localidad: this.clienteForm.localidad.trim(),
+              telefono: this.clienteForm.telefono.trim(),
+              estado: this.clienteForm.estado || 'Activo',
+              fechaAlta: fechaStr,
+              notas: this.clienteForm.notas.trim()
+            };
+            this.clientes.push(nuevo);
+            if (this.modalNuevoTrabajo) {
+              this.nuevoTrabajo.clienteNombre = nuevo.nombre;
+            }
+          }
+
+          this.guardarStorage();
+          this.modalCliente = false;
+
+          // Sincronizar de inmediato con Google Sheets si está conectado
+          if (this.accessToken && this.config.sheetId) {
+            await this.sincronizarOdontologosEnSheet(false);
+          }
+        },
+
+        async darDeBajaCliente(c) {
+          const confirmar = confirm(`¿Confirmas dar de baja a ${c.nombre}?\n\n• No se borrará ningún dato, boleta ni saldo histórico.\n• Solo dejará de aparecer en la lista para cargar nuevos trabajos.\n• Podrás reactivarlo en cualquier momento desde la pestaña "Dados de baja".`);
+          if (!confirmar) return;
+
+          c.estado = 'Inactivo';
+          this.guardarStorage();
+
+          if (this.accessToken && this.config.sheetId) {
+            await this.sincronizarOdontologosEnSheet(false);
+          }
+          alert(`✅ ${c.nombre} ha sido dado de baja. Sus registros históricos permanecen intactos.`);
+        },
+
+        async reactivarCliente(c) {
+          c.estado = 'Activo';
+          this.guardarStorage();
+
+          if (this.accessToken && this.config.sheetId) {
+            await this.sincronizarOdontologosEnSheet(false);
+          }
+          alert(`✅ ${c.nombre} ha sido reactivado y vuelve a estar habilitado para nuevos trabajos.`);
+        },
+
+        // ==========================================
         // GESTIÓN DE CALENDAR FLEXIBLE (ID / LINK)
         // ==========================================
         limpiarCalendarIdInput() {
           let val = this.config.calendarId.trim();
-          // Si pegó una URL pública con src=...
           if (val.includes('src=')) {
             const match = val.match(/src=([^&]+)/);
             if (match) {
@@ -1173,6 +1802,44 @@
         },
 
         // ==========================================
+        // CATÁLOGO DE PRECIOS
+        // ==========================================
+        abrirNuevoPrecio() {
+          this.itemPrecioForm = { index: null, nombre: '', categoria: 'Prótesis Fija', precio: 0 };
+          this.modalPrecio = true;
+        },
+
+        editarPrecio(idx) {
+          const item = this.listaPrecios[idx];
+          if (!item) return;
+          this.itemPrecioForm = { index: idx, nombre: item.nombre, categoria: item.categoria || 'General', precio: item.precio || 0 };
+          this.modalPrecio = true;
+        },
+
+        guardarItemPrecio() {
+          if (!this.itemPrecioForm.nombre.trim()) return;
+          const nuevoItem = {
+            nombre: this.itemPrecioForm.nombre.trim().toUpperCase(),
+            categoria: this.itemPrecioForm.categoria.trim() || 'General',
+            precio: Number(this.itemPrecioForm.precio) || 0
+          };
+          if (this.itemPrecioForm.index !== null) {
+            this.listaPrecios[this.itemPrecioForm.index] = nuevoItem;
+          } else {
+            this.listaPrecios.push(nuevoItem);
+          }
+          this.guardarStorage();
+          this.modalPrecio = false;
+        },
+
+        eliminarPrecio(idx) {
+          if (confirm(`¿Eliminar ${this.listaPrecios[idx].nombre} de la lista de precios sugeridos?`)) {
+            this.listaPrecios.splice(idx, 1);
+            this.guardarStorage();
+          }
+        },
+
+        // ==========================================
         // GOOGLE OAUTH Y APIS
         // ==========================================
         iniciarSesionGoogle() {
@@ -1237,7 +1904,7 @@
             this.guardarStorage();
 
             await this.prepararEstructuraSheet(id, sheetData);
-            alert(`✅ ¡Hoja privada "${sheetData.properties.title}" vinculada con éxito!`);
+            alert(`✅ ¡Hoja privada "${sheetData.properties.title}" vinculada y preparada con éxito!`);
           } catch (e) {
             alert("Error de conexión: " + e.message);
           }
@@ -1246,6 +1913,7 @@
         async prepararEstructuraSheet(id, sheetData) {
           const nombresHojas = (sheetData.sheets || []).map(s => s.properties.title);
           let requests = [];
+          if (!nombresHojas.includes("Odontologos")) requests.push({ addSheet: { properties: { title: "Odontologos" } } });
           if (!nombresHojas.includes("Trabajos")) requests.push({ addSheet: { properties: { title: "Trabajos" } } });
           if (!nombresHojas.includes("Pagos")) requests.push({ addSheet: { properties: { title: "Pagos" } } });
           if (!nombresHojas.includes("Pacientes")) requests.push({ addSheet: { properties: { title: "Pacientes" } } });
@@ -1256,18 +1924,71 @@
               headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ requests })
             });
+          }
 
-            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/Trabajos!A1:J1?valueInputOption=USER_ENTERED`, {
-              method: 'PUT',
-              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ values: [["Comprobante", "Fecha", "Odontologo", "Paciente", "Color", "Servicio", "Cantidad", "PrecioUnitario", "Total", "Notas"]] })
+          // Inicializar Encabezados
+          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/Odontologos!A1:H1?valueInputOption=USER_ENTERED`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [["ID", "Nombre", "Domicilio", "Localidad", "Telefono", "Estado", "FechaAlta", "Notas"]] })
+          });
+
+          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/Trabajos!A1:J1?valueInputOption=USER_ENTERED`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [["Comprobante", "Fecha", "Odontologo", "Paciente", "Color", "Servicio", "Cantidad", "PrecioUnitario", "Total", "Notas"]] })
+          });
+
+          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/Pagos!A1:E1?valueInputOption=USER_ENTERED`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [["Fecha", "Odontologo", "Monto", "Medio", "Nota"]] })
+          });
+
+          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/Pacientes!A1:E1?valueInputOption=USER_ENTERED`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [["Nombre", "Odontologos", "Telefono", "Email", "Notas"]] })
+          });
+
+          // Sincronizar odontólogos existentes a la hoja
+          await this.sincronizarOdontologosEnSheet(false);
+        },
+
+        async sincronizarOdontologosEnSheet(mostrarAlerta = false) {
+          if (!this.accessToken || !this.config.sheetId) return;
+          try {
+            const filas = this.clientes.map(c => [
+              c.id,
+              c.nombre,
+              c.domicilio || '',
+              c.localidad || 'La Plata',
+              c.telefono || '',
+              c.estado || 'Activo',
+              c.fechaAlta || '',
+              c.notas || ''
+            ]);
+
+            // Limpiar rango para evitar filas huérfanas
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.sheetId}/values/Odontologos!A2:H1000:clear`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' }
             });
 
-            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/Pacientes!A1:E1?valueInputOption=USER_ENTERED`, {
-              method: 'PUT',
-              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ values: [["Nombre", "Odontologos", "Telefono", "Email", "Notas"]] })
-            });
+            if (filas.length > 0) {
+              await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.sheetId}/values/Odontologos!A2:H?valueInputOption=USER_ENTERED`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ values: filas })
+              });
+            }
+
+            if (mostrarAlerta) {
+              alert(`✅ Base de datos de odontólogos (${this.clientes.length} profesionales) sincronizada en Google Sheets.`);
+            }
+          } catch (e) {
+            console.error("Error al sincronizar odontólogos con Sheets:", e);
+            if (mostrarAlerta) alert("Error al sincronizar: " + e.message);
           }
         },
 
@@ -1294,6 +2015,19 @@
             });
           } catch (e) {
             console.error("Error al sincronizar con Sheets:", e);
+          }
+        },
+
+        async sincronizarPagoEnSheet(pago) {
+          if (!this.accessToken || !this.config.sheetId) return;
+          try {
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.sheetId}/values/Pagos!A:E:append?valueInputOption=USER_ENTERED`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ values: [[pago.fecha, pago.clienteNombre, pago.monto, pago.medio, pago.nota || '']] })
+            });
+          } catch (e) {
+            console.error("Error al sincronizar pago con Sheets:", e);
           }
         },
 
@@ -1373,8 +2107,9 @@
         calcularSaldoCliente(nombre) { return this.calcularFacturadoCliente(nombre) - this.calcularCobradoCliente(nombre); },
 
         abrirNuevoTrabajo() {
+          const defaultCli = this.clientesActivos[0]?.nombre || this.clientes[0]?.nombre || '';
           this.nuevoTrabajo = {
-            clienteNombre: this.clientes[0]?.nombre || '',
+            clienteNombre: defaultCli,
             fecha: new Date().toISOString().split('T')[0],
             agendarCalendar: this.config.calendarConectado,
             notas: '',
@@ -1420,20 +2155,22 @@
             return;
           }
 
-          const nroActual = this.config.siguienteNumero;
-          const comprobanteFormateado = this.formatoComprobante(nroActual);
-          this.config.siguienteNumero++;
-
           const [y, m, d] = this.nuevoTrabajo.fecha.split('-');
           const fechaFormateada = `${d}/${m}/${y}`;
+          const nroActual = this.config.siguienteNumero;
+          const comprobanteNro = this.formatoComprobante(nroActual);
 
+          // Incrementar y guardar correlativo
+          this.config.siguienteNumero = Number(nroActual) + 1;
+
+          // Registrar pacientes autocompletables
           this.nuevoTrabajo.items.forEach(it => {
             this.registrarOActualizarPaciente(it.paciente, this.nuevoTrabajo.clienteNombre);
           });
 
           const nuevoObj = {
             id: Date.now(),
-            comprobanteNro: comprobanteFormateado,
+            comprobanteNro: comprobanteNro,
             fecha: fechaFormateada,
             clienteNombre: this.nuevoTrabajo.clienteNombre,
             enviadoCalendar: this.nuevoTrabajo.agendarCalendar,
@@ -1467,7 +2204,7 @@
           this.modalCobro = true;
         },
 
-        guardarCobro() {
+        async guardarCobro() {
           if (!this.cobroForm.monto || this.cobroForm.monto <= 0) {
             alert('Ingresa un monto válido');
             return;
@@ -1475,16 +2212,22 @@
           const [y, m, d] = this.cobroForm.fecha.split('-');
           const fechaFormateada = `${d}/${m}/${y}`;
 
-          this.pagos.unshift({
+          const nuevoPago = {
             id: Date.now(),
             fecha: fechaFormateada,
             clienteNombre: this.cobroForm.clienteNombre,
             monto: this.cobroForm.monto,
             medio: this.cobroForm.medio,
             nota: this.cobroForm.nota
-          });
+          };
 
+          this.pagos.unshift(nuevoPago);
           this.guardarStorage();
+
+          if (this.accessToken && this.config.sheetId) {
+            await this.sincronizarPagoEnSheet(nuevoPago);
+          }
+
           this.modalCobro = false;
           alert('✅ Cobro registrado. Saldo actualizado.');
         },
@@ -1571,22 +2314,6 @@
 
           const url = tel ? `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
           window.open(url, '_blank');
-        },
-
-        abrirNuevoCliente() { this.nuevoCliente = { nombre: '', domicilio: '', localidad: 'La Plata', telefono: '' }; this.modalNuevoCliente = true; },
-        guardarNuevoCliente() {
-          if (!this.nuevoCliente.nombre) return;
-          const nuevo = {
-            id: Date.now(),
-            nombre: this.nuevoCliente.nombre.trim(),
-            domicilio: this.nuevoCliente.domicilio.trim(),
-            localidad: this.nuevoCliente.localidad.trim(),
-            telefono: this.nuevoCliente.telefono.trim()
-          };
-          this.clientes.push(nuevo);
-          if (this.modalNuevoTrabajo) this.nuevoTrabajo.clienteNombre = nuevo.nombre;
-          this.guardarStorage();
-          this.modalNuevoCliente = false;
         },
 
         obtenerDomicilioCliente(nombre) {
